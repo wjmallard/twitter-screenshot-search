@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pytesseract
 from tqdm import tqdm
 from PIL import Image
@@ -28,11 +30,18 @@ def parse_created_at(filename: str) -> datetime | None:
     return datetime.strptime(m.group(1), "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
 
 
+def preprocess(img: Image.Image) -> Image.Image:
+    """Apply CLAHE contrast enhancement for dark-mode screenshot OCR."""
+    arr = np.array(img.convert("L"))
+    clahe = cv2.createCLAHE(clipLimit=16.0, tileGridSize=(16, 16))
+    return Image.fromarray(clahe.apply(arr))
+
+
 def process_image(path: Path) -> dict:
     """Run OCR and extract metadata for a single image. Returns a dict for upsert."""
     img = Image.open(path)
     width, height = img.size
-    ocr_text = pytesseract.image_to_string(img)
+    ocr_text = pytesseract.image_to_string(preprocess(img))
     created_at = parse_created_at(path.name)
     return {
         "file_path": str(path),
