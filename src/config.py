@@ -1,0 +1,15 @@
+"""Load project config from config.yaml."""
+
+from pathlib import Path
+
+import yaml
+
+_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
+
+with open(_CONFIG_PATH) as f:
+    _raw = yaml.safe_load(f)
+
+SCREENSHOT_DIR = Path(_raw["screenshot_dir"]).expanduser()
+TESSERACT_WORKERS = _raw["tesseract_workers"]
+COMMIT_BATCH_SIZE = _raw["commit_batch_size"]
+FLASK_PORT = _raw["flask_port"]

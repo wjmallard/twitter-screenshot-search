@@ -1,0 +1,4 @@
+screenshot_dir: ~/Desktop/Screenshots
+tesseract_workers: 4
+commit_batch_size: 50
+flask_port: 5000
