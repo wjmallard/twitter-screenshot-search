@@ -65,9 +65,9 @@ def search_trigram(conn, query, limit=50, offset=0, sort="relevance"):
     return conn.execute(
         f"""
         SELECT file_path, ocr_text, created_at, width, height,
-               similarity(ocr_text, %s) AS sim
+               word_similarity(%s, ocr_text) AS sim
         FROM screenshots
-        WHERE ocr_text %% %s
+        WHERE %s <<%% ocr_text
         ORDER BY {order}
         LIMIT %s OFFSET %s
         """,
