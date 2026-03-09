@@ -38,28 +38,37 @@ def images_in_db(conn) -> set[str]:
     return {row[0] for row in rows}
 
 
-def search_fulltext(conn, query, limit=50, offset=0):
+SORT_OPTIONS = {
+    "relevance": {"fulltext": "rank DESC", "trigram": "sim DESC"},
+    "newest": {"fulltext": "created_at DESC NULLS LAST", "trigram": "created_at DESC NULLS LAST"},
+    "oldest": {"fulltext": "created_at ASC NULLS LAST", "trigram": "created_at ASC NULLS LAST"},
+}
+
+
+def search_fulltext(conn, query, limit=50, offset=0, sort="relevance"):
+    order = SORT_OPTIONS.get(sort, SORT_OPTIONS["relevance"])["fulltext"]
     return conn.execute(
-        """
+        f"""
         SELECT file_path, ocr_text, created_at, width, height,
                ts_rank(ocr_text_tsv, websearch_to_tsquery('english', %s)) AS rank
         FROM screenshots
         WHERE ocr_text_tsv @@ websearch_to_tsquery('english', %s)
-        ORDER BY rank DESC
+        ORDER BY {order}
         LIMIT %s OFFSET %s
         """,
         (query, query, limit, offset),
     ).fetchall()
 
 
-def search_trigram(conn, query, limit=50, offset=0):
+def search_trigram(conn, query, limit=50, offset=0, sort="relevance"):
+    order = SORT_OPTIONS.get(sort, SORT_OPTIONS["relevance"])["trigram"]
     return conn.execute(
-        """
+        f"""
         SELECT file_path, ocr_text, created_at, width, height,
                similarity(ocr_text, %s) AS sim
         FROM screenshots
         WHERE ocr_text %% %s
-        ORDER BY sim DESC
+        ORDER BY {order}
         LIMIT %s OFFSET %s
         """,
         (query, query, limit, offset),
