@@ -46,21 +46,33 @@ _FT_SCORE = "ts_rank(ocr_text_tsv, websearch_to_tsquery('english', %s))"
 _TG_SCORE = "word_similarity(%s, ocr_text)"
 
 SORT_OPTIONS = {
-    "best": {"fulltext": f"{_FT_SCORE} * {_DECAY} DESC", "trigram": f"{_TG_SCORE} * {_DECAY} DESC"},
-    "strongest": {"fulltext": f"{_FT_SCORE} DESC", "trigram": f"{_TG_SCORE} DESC"},
-    "newest": {"fulltext": "created_at DESC NULLS LAST", "trigram": "created_at DESC NULLS LAST"},
-    "oldest": {"fulltext": "created_at ASC NULLS LAST", "trigram": "created_at ASC NULLS LAST"},
+    "best": {"word": f"{_FT_SCORE} * {_DECAY} DESC", "char": f"{_TG_SCORE} * {_DECAY} DESC", "none": f"{_DECAY} DESC"},
+    "strongest": {"word": f"{_FT_SCORE} DESC", "char": f"{_TG_SCORE} DESC", "none": "created_at DESC NULLS LAST"},
+    "newest": "created_at DESC NULLS LAST",
+    "oldest": "created_at ASC NULLS LAST",
 }
 
 # Number of extra %s params the ORDER BY clause needs for the query string
-_SORT_EXTRA_PARAMS = {"best": 1, "strongest": 1, "newest": 0, "oldest": 0}
+_SORT_EXTRA_PARAMS = {
+    "best": {"word": 1, "char": 1, "none": 0},
+    "strongest": {"word": 1, "char": 1, "none": 0},
+    "newest": 0,
+    "oldest": 0,
+}
+
+
+def _resolve_sort(sort, fuzzy):
+    if sort not in SORT_OPTIONS:
+        sort = "best"
+    opt = SORT_OPTIONS[sort]
+    order = opt[fuzzy] if isinstance(opt, dict) else opt
+    extra_opt = _SORT_EXTRA_PARAMS[sort]
+    extra = extra_opt[fuzzy] if isinstance(extra_opt, dict) else extra_opt
+    return order, extra
 
 
 def search_fulltext(conn, query, limit=50, offset=0, sort="best"):
-    if sort not in SORT_OPTIONS:
-        sort = "best"
-    order = SORT_OPTIONS[sort]["fulltext"]
-    extra = _SORT_EXTRA_PARAMS[sort]
+    order, extra = _resolve_sort(sort, "word")
     params = (query, query) + (query,) * extra + (limit, offset)
     return conn.execute(
         f"""
@@ -76,10 +88,7 @@ def search_fulltext(conn, query, limit=50, offset=0, sort="best"):
 
 
 def search_trigram(conn, query, limit=50, offset=0, sort="best"):
-    if sort not in SORT_OPTIONS:
-        sort = "best"
-    order = SORT_OPTIONS[sort]["trigram"]
-    extra = _SORT_EXTRA_PARAMS[sort]
+    order, extra = _resolve_sort(sort, "char")
     params = (query, query) + (query,) * extra + (limit, offset)
     return conn.execute(
         f"""
@@ -87,6 +96,23 @@ def search_trigram(conn, query, limit=50, offset=0, sort="best"):
                word_similarity(%s, ocr_text) AS score
         FROM screenshots
         WHERE %s <<%% ocr_text
+        ORDER BY {order}
+        LIMIT %s OFFSET %s
+        """,
+        params,
+    ).fetchall()
+
+
+def search_exact(conn, query, limit=50, offset=0, sort="best"):
+    order, extra = _resolve_sort(sort, "none")
+    like_param = f"%{query}%"
+    params = (like_param,) + (query,) * extra + (limit, offset)
+    return conn.execute(
+        f"""
+        SELECT file_path, ocr_text, created_at, width, height,
+               1.0 AS score
+        FROM screenshots
+        WHERE ocr_text ILIKE %s
         ORDER BY {order}
         LIMIT %s OFFSET %s
         """,
