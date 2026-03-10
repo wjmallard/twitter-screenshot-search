@@ -120,6 +120,30 @@ def search_exact(conn, query, limit=50, offset=0, sort="best"):
     ).fetchall()
 
 
+def count_fulltext(conn, query):
+    row = conn.execute(
+        "SELECT count(*) FROM screenshots WHERE ocr_text_tsv @@ websearch_to_tsquery('english', %s)",
+        (query,),
+    ).fetchone()
+    return row[0]
+
+
+def count_trigram(conn, query):
+    row = conn.execute(
+        "SELECT count(*) FROM screenshots WHERE %s <<% ocr_text",
+        (query,),
+    ).fetchone()
+    return row[0]
+
+
+def count_exact(conn, query):
+    row = conn.execute(
+        "SELECT count(*) FROM screenshots WHERE ocr_text ILIKE %s",
+        (f"%{query}%",),
+    ).fetchone()
+    return row[0]
+
+
 def count_screenshots(conn):
     row = conn.execute("SELECT count(*) FROM screenshots").fetchone()
     return row[0]

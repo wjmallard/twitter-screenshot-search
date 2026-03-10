@@ -20,7 +20,18 @@
         <label><input type="radio" name="sort" value="newest" {{ "checked" if sort == "newest" }}> Newest</label>
         <label><input type="radio" name="sort" value="oldest" {{ "checked" if sort == "oldest" }}> Oldest</label>
     </form>
-    <div class="stats">{{ "{:,}".format(total_indexed) }} screenshots indexed{% if q %} &mdash; showing results for &ldquo;{{ q }}&rdquo;{% endif %}</div>
+    <div class="stats">{{ "{:,}".format(total_indexed) }} screenshots indexed{% if q %} &mdash; {{ "{:,}".format(total_results) }} results for &ldquo;{{ q }}&rdquo;{% endif %}</div>
+    {% if pages %}
+    <div class="pagination">
+        {% if page > 1 %}<a href="/?q={{ q }}&fuzzy={{ fuzzy }}&sort={{ sort }}&page={{ page - 1 }}">&laquo;</a>{% else %}<span class="disabled">&laquo;</span>{% endif %}
+        {% for p in pages %}
+            {% if p is none %}<span class="ellipsis">&hellip;</span>
+            {% elif p == page %}<span class="current">{{ p }}</span>
+            {% else %}<a href="/?q={{ q }}&fuzzy={{ fuzzy }}&sort={{ sort }}&page={{ p }}">{{ p }}</a>{% endif %}
+        {% endfor %}
+        {% if page < total_pages %}<a href="/?q={{ q }}&fuzzy={{ fuzzy }}&sort={{ sort }}&page={{ page + 1 }}">&raquo;</a>{% else %}<span class="disabled">&raquo;</span>{% endif %}
+    </div>
+    {% endif %}
     {% for r in results %}
     <div class="result">
         <div class="thumb">
@@ -35,9 +46,5 @@
         </div>
     </div>
     {% endfor %}
-    <div class="pagination">
-        {% if page > 1 %}<a href="/?q={{ q }}&fuzzy={{ fuzzy }}&sort={{ sort }}&page={{ page - 1 }}">&laquo; Prev</a>{% endif %}
-        {% if has_next %}<a href="/?q={{ q }}&fuzzy={{ fuzzy }}&sort={{ sort }}&page={{ page + 1 }}">Next &raquo;</a>{% endif %}
-    </div>
 </body>
 </html>

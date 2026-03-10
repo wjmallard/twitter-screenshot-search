@@ -13,4 +13,5 @@ SCREENSHOT_DIR = Path(_raw["screenshot_dir"]).expanduser()
 TESSERACT_WORKERS = _raw["tesseract_workers"]
 COMMIT_BATCH_SIZE = _raw["commit_batch_size"]
 DECAY_HALF_LIFE_DAYS = _raw["decay_half_life_days"]
+RESULTS_PER_PAGE = _raw["results_per_page"]
 FLASK_PORT = _raw["flask_port"]
