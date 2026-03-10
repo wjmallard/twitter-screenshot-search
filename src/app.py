@@ -17,21 +17,17 @@ PER_PAGE = config.RESULTS_PER_PAGE
 
 
 def _page_numbers(current, total):
-    """Generate page numbers with ellipsis. Returns list of ints and None (for ellipsis)."""
-    if total <= 5:
+    """Generate page numbers with ellipsis. Always returns exactly 7 slots when total >= 7."""
+    if total <= 7:
         return list(range(1, total + 1))
-    # Build a window of 3 around current, clamped to edges
-    win_start = max(1, min(current - 1, total - 3))
-    win_end = min(total, max(current + 1, 4))
-    pages = {1, total}
-    for p in range(win_start, win_end + 1):
-        pages.add(p)
-    result = []
-    for p in sorted(pages):
-        if result and p - result[-1] > 1:
-            result.append(None)
-        result.append(p)
-    return result
+    # Near the start: 1 2 3 4 5 ... last
+    if current <= 4:
+        return [1, 2, 3, 4, 5, None, total]
+    # Near the end: 1 ... n-4 n-3 n-2 n-1 n
+    if current >= total - 3:
+        return [1, None, total - 4, total - 3, total - 2, total - 1, total]
+    # Middle: 1 ... c-1 c c+1 ... last
+    return [1, None, current - 1, current, current + 1, None, total]
 
 
 @app.route("/")
