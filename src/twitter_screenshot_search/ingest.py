@@ -75,6 +75,8 @@ def parse_dates_from_exif(img: Image.Image) -> tuple[datetime | None, datetime |
 
 def preprocess(img: Image.Image) -> Image.Image:
     """Apply CLAHE contrast enhancement for dark-mode screenshot OCR."""
+    if img.mode == "P" and "transparency" in img.info:
+        img = img.convert("RGBA")
     arr = np.array(img.convert("L"))
     clahe = cv2.createCLAHE(clipLimit=16.0, tileGridSize=(16, 16))
     return Image.fromarray(clahe.apply(arr))
