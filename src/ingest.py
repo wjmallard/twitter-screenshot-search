@@ -1,9 +1,9 @@
 """Batch OCR runner for screenshot ingestion."""
 
-import re
+import json
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import cv2
@@ -19,15 +19,58 @@ import config
 from db import get_conn, images_in_db, upsert_screenshot
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".heic", ".tiff", ".bmp"}
 
-# YYYYMMDD_HHMMSS--{original_name}--{shortuuid}.ext
-FILENAME_RE = re.compile(r"^(\d{8}_\d{6})--")
+
+def _parse_tz_offset(offset_str: str) -> timezone:
+    """Parse an offset like '-05:00' or '+09:00' into a timezone."""
+    sign = 1 if offset_str[0] == "+" else -1
+    h, m = offset_str[1:].split(":")
+    return timezone(timedelta(hours=sign * int(h), minutes=sign * int(m)))
 
 
-def parse_created_at(filename: str) -> datetime | None:
-    m = FILENAME_RE.match(filename)
-    if not m:
-        return None
-    return datetime.strptime(m.group(1), "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+def parse_dates_from_sidecar(image_path: Path) -> tuple[datetime | None, datetime | None, str | None]:
+    """Parse dates from JSON sidecar. Returns (utc, local_naive, tz_offset_str)."""
+    sidecar = Path(str(image_path) + ".json")
+    if not sidecar.is_file():
+        return None, None, None
+    try:
+        data = json.loads(sidecar.read_text())
+        if isinstance(data, list):
+            data = data[0]
+        dt_str = data.get("EXIF:DateTimeOriginal")
+        offset_str = data.get("EXIF:OffsetTimeOriginal")
+        if not dt_str:
+            return None, None, None
+        local_naive = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
+        if offset_str:
+            tz = _parse_tz_offset(offset_str)
+            local_aware = local_naive.replace(tzinfo=tz)
+            utc = local_aware.astimezone(timezone.utc)
+            return utc, local_naive, offset_str
+        return None, local_naive, None
+    except Exception:
+        return None, None, None
+
+
+def parse_dates_from_exif(img: Image.Image) -> tuple[datetime | None, datetime | None, str | None]:
+    """Fallback: parse dates from EXIF data via Pillow. Returns (utc, local_naive, tz_offset_str)."""
+    try:
+        exif = img.getexif()
+        if not exif:
+            return None, None, None
+        # 36867 = DateTimeOriginal, 36881 = OffsetTimeOriginal
+        dt_str = exif.get(36867)
+        offset_str = exif.get(36881)
+        if not dt_str:
+            return None, None, None
+        local_naive = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
+        if offset_str:
+            tz = _parse_tz_offset(offset_str)
+            local_aware = local_naive.replace(tzinfo=tz)
+            utc = local_aware.astimezone(timezone.utc)
+            return utc, local_naive, offset_str
+        return None, local_naive, None
+    except Exception:
+        return None, None, None
 
 
 def preprocess(img: Image.Image) -> Image.Image:
@@ -42,11 +85,16 @@ def process_image(path: Path) -> dict:
     img = Image.open(path)
     width, height = img.size
     ocr_text = pytesseract.image_to_string(preprocess(img))
-    created_at = parse_created_at(path.name)
+    # Try sidecar first, fall back to EXIF
+    utc, local, tz = parse_dates_from_sidecar(path)
+    if local is None:
+        utc, local, tz = parse_dates_from_exif(img)
     return {
         "file_path": str(path),
         "ocr_text": ocr_text,
-        "created_at": created_at,
+        "created_at": utc,
+        "created_at_local": local,
+        "timezone": tz,
         "width": width,
         "height": height,
     }
@@ -89,6 +137,8 @@ def ingest(root: Path, workers: int = config.TESSERACT_WORKERS):
                         result["file_path"],
                         result["ocr_text"],
                         result["created_at"],
+                        result["created_at_local"],
+                        result["timezone"],
                         result["width"],
                         result["height"],
                     )

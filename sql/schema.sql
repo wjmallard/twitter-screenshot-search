@@ -9,6 +9,8 @@ CREATE TABLE screenshots (
     file_path TEXT NOT NULL UNIQUE,
     ocr_text TEXT,
     created_at TIMESTAMPTZ,
+    created_at_local TIMESTAMP,
+    timezone TEXT,
     width INT,
     height INT,
     file_size BIGINT,
@@ -19,3 +21,4 @@ CREATE TABLE screenshots (
 CREATE INDEX idx_screenshots_tsv ON screenshots USING GIN (ocr_text_tsv);
 CREATE INDEX idx_screenshots_trgm ON screenshots USING GIN (ocr_text gin_trgm_ops);
 CREATE INDEX idx_screenshots_created ON screenshots (created_at);
+CREATE INDEX idx_screenshots_created_local ON screenshots (created_at_local);

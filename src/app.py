@@ -51,12 +51,13 @@ def index():
             else:
                 rows = search_fulltext(conn, q, limit=PER_PAGE, offset=offset, sort=sort)
                 total_results = count_fulltext(conn, q)
-            for file_path, ocr_text, created_at, width, height, score in rows:
+            for file_path, ocr_text, created_at_local, tz, width, height, score in rows:
                 results.append({
                     "file_path": file_path,
                     "name": Path(file_path).name,
                     "ocr_text": ocr_text or "",
-                    "date": created_at.strftime("%Y-%m-%d · %I:%M %p") if created_at else "unknown",
+                    "date": created_at_local.strftime("%Y-%m-%d · %I:%M %p") if created_at_local else "unknown",
+                    "timezone": tz or "",
                     "width": width,
                     "height": height,
                     "score": score,
