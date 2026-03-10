@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Twitter Screenshot Search</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Twitter Screenshot Search</h1>
+    <form class="search-bar" method="get" action="/">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search screenshots..." autofocus>
+        <button type="submit">Search</button>
+        <span class="label-group">Fuzzy:</span>
+        <label><input type="radio" name="fuzzy" value="word" {{ "checked" if fuzzy == "word" }}> Word</label>
+        <label><input type="radio" name="fuzzy" value="char" {{ "checked" if fuzzy == "char" }}> Char</label>
+        <label><input type="radio" name="fuzzy" value="none" {{ "checked" if fuzzy == "none" }}> None</label>
+        <span class="label-group">Sort:</span>
+        <label><input type="radio" name="sort" value="best" {{ "checked" if sort == "best" }}> Best</label>
+        <label><input type="radio" name="sort" value="strongest" {{ "checked" if sort == "strongest" }}> Strongest</label>
+        <label><input type="radio" name="sort" value="newest" {{ "checked" if sort == "newest" }}> Newest</label>
+        <label><input type="radio" name="sort" value="oldest" {{ "checked" if sort == "oldest" }}> Oldest</label>
+    </form>
+    <div class="stats">{{ "{:,}".format(total_indexed) }} screenshots indexed{% if q %} &mdash; showing results for &ldquo;{{ q }}&rdquo;{% endif %}</div>
+    {% for r in results %}
+    <div class="result">
+        <div class="thumb">
+            <a href="/image?path={{ r.file_path }}" target="_blank">
+                <img src="/image?path={{ r.file_path }}&thumb=1" loading="lazy" alt="{{ r.name }}">
+            </a>
+        </div>
+        <div class="info">
+            <div class="date">{{ r.date }}</div>
+            <div class="meta">{{ r.name }} &mdash; {{ r.width }}x{{ r.height }} &mdash; score: {{ "%.3f"|format(r.score) }}</div>
+            <pre class="ocr">{{ r.ocr_text }}</pre>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="pagination">
+        {% if page > 1 %}<a href="/?q={{ q }}&fuzzy={{ fuzzy }}&sort={{ sort }}&page={{ page - 1 }}">&laquo; Prev</a>{% endif %}
+        {% if has_next %}<a href="/?q={{ q }}&fuzzy={{ fuzzy }}&sort={{ sort }}&page={{ page + 1 }}">Next &raquo;</a>{% endif %}
+    </div>
+</body>
+</html>
