@@ -5,8 +5,8 @@ from pathlib import Path
 
 from flask import Flask, abort, render_template, request, send_file
 
-import config
-from db import (
+from twitter_screenshot_search import config
+from twitter_screenshot_search.db import (
     get_conn, search_fulltext, search_trigram, search_exact,
     count_fulltext, count_trigram, count_exact, count_screenshots,
 )
@@ -110,5 +110,9 @@ def serve_image():
     return send_file(p, mimetype=mime)
 
 
-if __name__ == "__main__":
+def main():
     app.run(debug=True, port=config.FLASK_PORT)
+
+
+if __name__ == "__main__":
+    main()
