@@ -56,7 +56,7 @@ def index():
                     "file_path": file_path,
                     "name": Path(file_path).name,
                     "ocr_text": ocr_text or "",
-                    "date": created_at_local.strftime("%Y-%m-%d · %I:%M %p") if created_at_local else "unknown",
+                    "date": created_at_local.strftime("%Y-%m-%d · %I:%M %p · %A") if created_at_local else "unknown",
                     "timezone": tz or "",
                     "width": width,
                     "height": height,
