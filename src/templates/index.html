@@ -8,17 +8,21 @@
 <body>
     <h1>Twitter Screenshot Search</h1>
     <form class="search-bar" method="get" action="/">
-        <input type="text" name="q" value="{{ q }}" placeholder="Search screenshots..." autofocus>
-        <button type="submit">Search</button>
-        <span class="label-group">Fuzzy:</span>
-        <label><input type="radio" name="fuzzy" value="word" {{ "checked" if fuzzy == "word" }}> Word</label>
-        <label><input type="radio" name="fuzzy" value="char" {{ "checked" if fuzzy == "char" }}> Char</label>
-        <label><input type="radio" name="fuzzy" value="none" {{ "checked" if fuzzy == "none" }}> None</label>
-        <span class="label-group">Sort:</span>
-        <label><input type="radio" name="sort" value="best" {{ "checked" if sort == "best" }}> Best</label>
-        <label><input type="radio" name="sort" value="strongest" {{ "checked" if sort == "strongest" }}> Strongest</label>
-        <label><input type="radio" name="sort" value="newest" {{ "checked" if sort == "newest" }}> Newest</label>
-        <label><input type="radio" name="sort" value="oldest" {{ "checked" if sort == "oldest" }}> Oldest</label>
+        <div class="search-row">
+            <input type="text" name="q" value="{{ q }}" placeholder="Search screenshots..." autofocus>
+            <button type="submit">Search</button>
+        </div>
+        <div class="controls-row">
+            <span class="label-group">Fuzzy:</span>
+            <label><input type="radio" name="fuzzy" value="word" {{ "checked" if fuzzy == "word" }}> Word</label>
+            <label><input type="radio" name="fuzzy" value="char" {{ "checked" if fuzzy == "char" }}> Char</label>
+            <label><input type="radio" name="fuzzy" value="none" {{ "checked" if fuzzy == "none" }}> None</label>
+            <span class="label-group divider">Sort:</span>
+            <label><input type="radio" name="sort" value="best" {{ "checked" if sort == "best" }}> Best</label>
+            <label><input type="radio" name="sort" value="strongest" {{ "checked" if sort == "strongest" }}> Strongest</label>
+            <label><input type="radio" name="sort" value="newest" {{ "checked" if sort == "newest" }}> Newest</label>
+            <label><input type="radio" name="sort" value="oldest" {{ "checked" if sort == "oldest" }}> Oldest</label>
+        </div>
     </form>
     <div class="stats">{{ "{:,}".format(total_indexed) }} screenshots indexed{% if q %} &mdash; {{ "{:,}".format(total_results) }} results for &ldquo;{{ q }}&rdquo;{% endif %}</div>
     {% if pages %}
