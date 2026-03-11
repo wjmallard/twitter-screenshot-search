@@ -35,6 +35,15 @@ h1 { margin-bottom: 16px; color: #000; }
 .overlay-close:hover { color: #1a1a1a; }
 .overlay-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
 .overlay-body .result { margin-bottom: 12px; }
+.lightbox-content { position: fixed; inset: 0; z-index: 201; display: flex; align-items: center; justify-content: center; }
+#lightbox .overlay-backdrop { z-index: 200; background: rgba(0, 0, 0, 0.85); }
+#lightbox-img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 4px; }
+.lightbox-close { position: fixed; top: 16px; right: 16px; z-index: 202; background: none; border: none; font-size: 36px; color: #fff; cursor: pointer; opacity: 0.7; }
+.lightbox-close:hover { opacity: 1; }
+.lightbox-prev, .lightbox-next { position: fixed; top: 50%; z-index: 202; transform: translateY(-50%); background: none; border: none; font-size: 48px; color: #fff; cursor: pointer; opacity: 0.5; padding: 16px; }
+.lightbox-prev:hover, .lightbox-next:hover { opacity: 1; }
+.lightbox-prev { left: 8px; }
+.lightbox-next { right: 8px; }
 .result-source { border-color: #0969da; border-width: 2px; }
 .loading { color: #656d76; font-size: 14px; }
 

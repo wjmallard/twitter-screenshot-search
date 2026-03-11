@@ -39,7 +39,7 @@
     {% for r in results %}
     <div class="result">
         <div class="thumb">
-            <a href="/image?path={{ r.file_path }}" target="_blank">
+            <a href="#" class="lightbox-link" data-path="{{ r.file_path }}">
                 <img src="/image?path={{ r.file_path }}&thumb=1" loading="lazy" alt="{{ r.name }}">
             </a>
         </div>
@@ -50,6 +50,16 @@
         </div>
     </div>
     {% endfor %}
+
+    <div id="lightbox" class="overlay hidden">
+        <div class="overlay-backdrop"></div>
+        <div class="lightbox-content">
+            <button class="lightbox-close">&times;</button>
+            <button class="lightbox-prev">&lsaquo;</button>
+            <button class="lightbox-next">&rsaquo;</button>
+            <img id="lightbox-img" src="" alt="">
+        </div>
+    </div>
 
     <div id="related-overlay" class="overlay hidden">
         <div class="overlay-backdrop"></div>
@@ -62,59 +72,6 @@
         </div>
     </div>
 
-    <script>
-    document.addEventListener('click', function(e) {
-        const link = e.target.closest('.related-link');
-        if (!link) return;
-        e.preventDefault();
-        const id = link.dataset.id;
-        const overlay = document.getElementById('related-overlay');
-        const body = document.getElementById('related-results');
-        body.innerHTML = '<p class="loading">Loading...</p>';
-        overlay.classList.remove('hidden');
-
-        fetch('/related/' + id)
-            .then(r => r.json())
-            .then(data => {
-                if (!data.related.length) {
-                    body.innerHTML = '<p class="loading">No related screenshots found.</p>';
-                    return;
-                }
-                function renderCard(r, extra) {
-                    const cls = extra.source ? 'result result-source' : 'result';
-                    const simText = extra.similarity != null ? ` &mdash; similarity: ${extra.similarity}` : '';
-                    return `
-                        <div class="${cls}">
-                            <div class="thumb">
-                                <a href="/image?path=${encodeURIComponent(r.file_path)}" target="_blank">
-                                    <img src="/image?path=${encodeURIComponent(r.file_path)}&thumb=1" loading="lazy" alt="${r.name}">
-                                </a>
-                            </div>
-                            <div class="info">
-                                <div class="date">${r.date}</div>
-                                <div class="meta">${r.name} &mdash; ${r.width}x${r.height}${simText} &mdash; <a href="/image?path=${encodeURIComponent(r.file_path)}" download class="action-link">download</a> &mdash; <a href="#" class="related-link" data-id="${r.id}">related</a></div>
-                                <pre class="ocr">${r.ocr_text.replace(/</g, '&lt;')}</pre>
-                            </div>
-                        </div>`;
-                }
-                let html = '';
-                if (data.source) {
-                    html += renderCard(data.source, {source: true});
-                }
-                html += data.related.map(r => renderCard(r, {similarity: r.similarity})).join('');
-                body.innerHTML = html;
-            });
-    });
-
-    document.querySelector('.overlay-close').addEventListener('click', function() {
-        document.getElementById('related-overlay').classList.add('hidden');
-    });
-    document.querySelector('.overlay-backdrop').addEventListener('click', function() {
-        document.getElementById('related-overlay').classList.add('hidden');
-    });
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') document.getElementById('related-overlay').classList.add('hidden');
-    });
-    </script>
+    <script src="/static/main.js"></script>
 </body>
 </html>
