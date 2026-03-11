@@ -61,8 +61,9 @@ def index():
             else:
                 rows = search_fulltext(conn, q, limit=PER_PAGE, offset=offset, sort=sort)
                 total_results = count_fulltext(conn, q)
-            for file_path, ocr_text, created_at_local, tz, width, height, score in rows:
+            for row_id, file_path, ocr_text, created_at_local, tz, width, height, score in rows:
                 results.append({
+                    "id": row_id,
                     "file_path": file_path,
                     "name": Path(file_path).name,
                     "ocr_text": ocr_text or "",
@@ -120,32 +121,38 @@ def serve_image():
     return send_file(p, mimetype=mime)
 
 
+def _format_screenshot(s, screenshot_id):
+    return {
+        "id": screenshot_id,
+        "file_path": s["file_path"],
+        "name": Path(s["file_path"]).name,
+        "ocr_text": s["ocr_text"] or "",
+        "date": s["created_at_local"].strftime("%Y-%m-%d · %I:%M %p · %A") if s["created_at_local"] else "unknown",
+        "timezone": s["timezone"] or "",
+        "width": s["width"],
+        "height": s["height"],
+    }
+
+
 @app.route("/related/<int:screenshot_id>")
 def related(screenshot_id):
     matches = query_related(_lsh, _minhashes, screenshot_id)
-    if not matches:
-        return jsonify([])
     match_ids = [mid for mid, _ in matches]
     sim_by_id = dict(matches)
+    all_ids = [screenshot_id] + match_ids
     with get_conn() as conn:
-        screenshots = get_screenshots_by_ids(conn, match_ids)
-    results = []
+        screenshots = get_screenshots_by_ids(conn, all_ids)
+    source = None
+    if screenshot_id in screenshots:
+        source = _format_screenshot(screenshots[screenshot_id], screenshot_id)
+    related_results = []
     for mid in match_ids:
         if mid not in screenshots:
             continue
-        s = screenshots[mid]
-        results.append({
-            "id": mid,
-            "file_path": s["file_path"],
-            "name": Path(s["file_path"]).name,
-            "ocr_text": s["ocr_text"] or "",
-            "date": s["created_at_local"].strftime("%Y-%m-%d · %I:%M %p · %A") if s["created_at_local"] else "unknown",
-            "timezone": s["timezone"] or "",
-            "width": s["width"],
-            "height": s["height"],
-            "similarity": round(sim_by_id[mid], 3),
-        })
-    return jsonify(results)
+        r = _format_screenshot(screenshots[mid], mid)
+        r["similarity"] = round(sim_by_id[mid], 3)
+        related_results.append(r)
+    return jsonify({"source": source, "related": related_results})
 
 
 def main():
