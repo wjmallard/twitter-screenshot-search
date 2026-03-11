@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone, timedelta
 
 
-def _parse_tz_offset(offset_str: str) -> timezone:
+def parse_tz_offset(offset_str: str) -> timezone:
     """Parse an offset like '-05:00' or '+09:00' into a timezone."""
     sign = 1 if offset_str[0] == "+" else -1
     h, m = offset_str[1:].split(":")
@@ -70,7 +70,7 @@ def _extract_absolute(
         try:
             dt = datetime.strptime(f"{time_str} - {date_str}", f"%I:%M %p - {fmt}")
             if tz_offset:
-                tz = _parse_tz_offset(tz_offset)
+                tz = parse_tz_offset(tz_offset)
                 dt = dt.replace(tzinfo=tz).astimezone(timezone.utc)
             else:
                 dt = dt.replace(tzinfo=timezone.utc)

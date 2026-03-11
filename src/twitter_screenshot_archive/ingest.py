@@ -16,7 +16,7 @@ from pillow_heif import register_heif_opener
 register_heif_opener()
 
 from . import config
-from .dates import _parse_tz_offset, extract_tweet_time
+from .dates import parse_tz_offset, extract_tweet_time
 from .db import get_conn, images_in_db, upsert_screenshot
 from .minhash import compute_signature
 from .usernames import extract_usernames
@@ -38,7 +38,7 @@ def parse_dates_from_sidecar(image_path: Path) -> tuple[datetime | None, datetim
             return None, None, None
         local_naive = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
         if offset_str:
-            tz = _parse_tz_offset(offset_str)
+            tz = parse_tz_offset(offset_str)
             local_aware = local_naive.replace(tzinfo=tz)
             utc = local_aware.astimezone(timezone.utc)
             return utc, local_naive, offset_str
@@ -60,7 +60,7 @@ def parse_dates_from_exif(img: Image.Image) -> tuple[datetime | None, datetime |
             return None, None, None
         local_naive = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
         if offset_str:
-            tz = _parse_tz_offset(offset_str)
+            tz = parse_tz_offset(offset_str)
             local_aware = local_naive.replace(tzinfo=tz)
             utc = local_aware.astimezone(timezone.utc)
             return utc, local_naive, offset_str
