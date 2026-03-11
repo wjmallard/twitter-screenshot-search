@@ -131,7 +131,11 @@
     document.addEventListener('keydown', function(e) {
         if (overlay.classList.contains('hidden')) return;
         if (!document.getElementById('lightbox').classList.contains('hidden')) return;
-        if (e.key === 'Escape') overlay.classList.add('hidden');
+        if (!document.getElementById('related-overlay').classList.contains('hidden')) return;
+        if (e.key === 'Escape') {
+            e.stopImmediatePropagation();
+            overlay.classList.add('hidden');
+        }
         else if (e.key === 'ArrowLeft') navigate(-1);
         else if (e.key === 'ArrowRight') navigate(1);
     });
@@ -192,7 +196,10 @@
         overlay.classList.add('hidden');
     });
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && document.getElementById('lightbox').classList.contains('hidden')) {
+        if (overlay.classList.contains('hidden')) return;
+        if (!document.getElementById('lightbox').classList.contains('hidden')) return;
+        if (e.key === 'Escape') {
+            e.stopImmediatePropagation();
             overlay.classList.add('hidden');
         }
     });
