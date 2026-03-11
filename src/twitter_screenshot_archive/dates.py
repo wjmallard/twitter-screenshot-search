@@ -38,30 +38,37 @@ _DATE_FORMATS = [
 ]
 
 
-def extract_tweet_time(
+# Relative timestamps from timeline views.
+# Appears after usernames: @user - 3h, @user : 12h, @user -1d
+# Units: h (hours), m (minutes), d (days)
+_RELATIVE_TIME_RE = re.compile(
+    r"[-–—:]\s*(\d{1,3})([dhm])\s",
+)
+
+_RELATIVE_UNITS = {
+    "m": "minutes",
+    "h": "hours",
+    "d": "days",
+}
+
+
+def _extract_absolute(
     ocr_text: str,
-    capture_utc: datetime | None,
     tz_offset: str | None,
 ) -> tuple[datetime | None, str | None]:
-    """Extract the focal tweet's timestamp from OCR text.
-
-    Returns (tweet_time as UTC, source) where source is 'absolute' or None.
-    Takes the last absolute timestamp found (focal tweet in detail view).
-    """
+    """Extract the last absolute timestamp (focal tweet in detail view)."""
     matches = _ABSOLUTE_TIME_RE.findall(ocr_text)
     if not matches:
         return None, None
 
-    time_str, date_str = matches[-1]  # last = focal tweet
+    time_str, date_str = matches[-1]
     time_str = time_str.replace("\u00a0", " ").strip()
     date_str = date_str.replace(",", ", ").strip()
-    # normalize multiple spaces
     date_str = " ".join(date_str.split())
 
     for fmt in _DATE_FORMATS:
         try:
             dt = datetime.strptime(f"{time_str} - {date_str}", f"%I:%M %p - {fmt}")
-            # Apply capture timezone if available, otherwise store as naive UTC
             if tz_offset:
                 tz = _parse_tz_offset(tz_offset)
                 dt = dt.replace(tzinfo=tz).astimezone(timezone.utc)
@@ -72,3 +79,41 @@ def extract_tweet_time(
             continue
 
     return None, None
+
+
+def _extract_relative(
+    ocr_text: str,
+    capture_utc: datetime | None,
+) -> tuple[datetime | None, str | None]:
+    """Extract the first relative timestamp, anchored to capture time."""
+    if capture_utc is None:
+        return None, None
+
+    match = _RELATIVE_TIME_RE.search(ocr_text)
+    if not match:
+        return None, None
+
+    amount = int(match.group(1))
+    unit = _RELATIVE_UNITS.get(match.group(2))
+    if not unit:
+        return None, None
+
+    dt = capture_utc - timedelta(**{unit: amount})
+    return dt, "relative"
+
+
+def extract_tweet_time(
+    ocr_text: str,
+    capture_utc: datetime | None,
+    tz_offset: str | None,
+) -> tuple[datetime | None, str | None]:
+    """Extract the focal tweet's timestamp from OCR text.
+
+    Returns (tweet_time as UTC, source) where source is 'absolute',
+    'relative', or None. Prefers absolute timestamps when available.
+    """
+    dt, source = _extract_absolute(ocr_text, tz_offset)
+    if dt:
+        return dt, source
+
+    return _extract_relative(ocr_text, capture_utc)
