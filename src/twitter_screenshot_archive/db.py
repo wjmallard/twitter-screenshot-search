@@ -1,9 +1,9 @@
 import psycopg
 from contextlib import contextmanager
 
-from twitter_screenshot_search import config
+from . import config
 
-DB_NAME = "twitter_screenshot_search"
+DB_NAME = "twitter_screenshot_archive"
 
 
 @contextmanager

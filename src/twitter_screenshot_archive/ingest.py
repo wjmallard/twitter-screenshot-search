@@ -15,9 +15,9 @@ from pillow_heif import register_heif_opener
 
 register_heif_opener()
 
-from twitter_screenshot_search import config
-from twitter_screenshot_search.db import get_conn, images_in_db, upsert_screenshot
-from twitter_screenshot_search.minhash import compute_signature
+from . import config
+from .db import get_conn, images_in_db, upsert_screenshot
+from .minhash import compute_signature
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".heic", ".tiff", ".bmp"}
 
 

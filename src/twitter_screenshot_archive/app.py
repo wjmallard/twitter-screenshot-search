@@ -8,13 +8,13 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, render_template, request, send_file
 
-from twitter_screenshot_search import config
-from twitter_screenshot_search.db import (
+from . import config
+from .db import (
     get_conn, search_fulltext, search_trigram, search_exact,
     count_fulltext, count_trigram, count_exact, count_screenshots,
     load_all_signatures, get_screenshots_by_ids, signature_fingerprint,
 )
-from twitter_screenshot_search.minhash import build_lsh_index, query_related
+from .minhash import build_lsh_index, query_related
 
 app = Flask(__name__)
 
@@ -23,7 +23,7 @@ PER_PAGE = config.RESULTS_PER_PAGE
 _lsh = None
 _minhashes = {}
 
-_CACHE_DIR = Path.home() / ".cache" / "twitter-screenshot-search"
+_CACHE_DIR = Path.home() / ".cache" / "twitter-screenshot-archive"
 _CACHE_FILE = _CACHE_DIR / "lsh_index.pkl"
 
 

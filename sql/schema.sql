@@ -1,6 +1,6 @@
-CREATE DATABASE twitter_screenshot_search;
+CREATE DATABASE twitter_screenshot_archive;
 
-\c twitter_screenshot_search
+\c twitter_screenshot_archive
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
