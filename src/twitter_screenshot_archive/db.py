@@ -20,12 +20,13 @@ def get_conn():
 
 
 def upsert_screenshot(conn, file_path, ocr_text, created_at, created_at_local, timezone, width, height,
-                      file_size=None, minhash_signature=None, mentioned_users=None):
+                      file_size=None, minhash_signature=None, mentioned_users=None,
+                      tweet_time=None, tweet_time_source=None):
     conn.execute(
         """
         INSERT INTO screenshots (file_path, ocr_text, created_at, created_at_local, timezone, width, height,
-                                 file_size, minhash_signature, mentioned_users)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                 file_size, minhash_signature, mentioned_users, tweet_time, tweet_time_source)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (file_path) DO UPDATE SET
             ocr_text = EXCLUDED.ocr_text,
             created_at = EXCLUDED.created_at,
@@ -35,10 +36,12 @@ def upsert_screenshot(conn, file_path, ocr_text, created_at, created_at_local, t
             height = EXCLUDED.height,
             file_size = EXCLUDED.file_size,
             minhash_signature = EXCLUDED.minhash_signature,
-            mentioned_users = EXCLUDED.mentioned_users
+            mentioned_users = EXCLUDED.mentioned_users,
+            tweet_time = EXCLUDED.tweet_time,
+            tweet_time_source = EXCLUDED.tweet_time_source
         """,
         (file_path, ocr_text, created_at, created_at_local, timezone, width, height, file_size, minhash_signature,
-         mentioned_users),
+         mentioned_users, tweet_time, tweet_time_source),
     )
 
 

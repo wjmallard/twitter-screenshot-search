@@ -17,16 +17,10 @@ from pillow_heif import register_heif_opener
 register_heif_opener()
 
 from . import config
+from .dates import _parse_tz_offset, extract_tweet_time
 from .db import get_conn, images_in_db, upsert_screenshot
 from .minhash import compute_signature
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".heic", ".tiff", ".bmp"}
-
-
-def _parse_tz_offset(offset_str: str) -> timezone:
-    """Parse an offset like '-05:00' or '+09:00' into a timezone."""
-    sign = 1 if offset_str[0] == "+" else -1
-    h, m = offset_str[1:].split(":")
-    return timezone(timedelta(hours=sign * int(h), minutes=sign * int(m)))
 
 
 def parse_dates_from_sidecar(image_path: Path) -> tuple[datetime | None, datetime | None, str | None]:
@@ -129,6 +123,7 @@ def process_image(path: Path) -> dict:
     utc, local, tz = parse_dates_from_sidecar(path)
     if local is None:
         utc, local, tz = parse_dates_from_exif(img)
+    tweet_time, tweet_time_source = extract_tweet_time(ocr_text, utc, tz)
     return {
         "file_path": str(path),
         "ocr_text": ocr_text,
@@ -140,6 +135,8 @@ def process_image(path: Path) -> dict:
         "file_size": path.stat().st_size,
         "minhash_signature": compute_signature(ocr_text),
         "mentioned_users": extract_usernames(ocr_text),
+        "tweet_time": tweet_time,
+        "tweet_time_source": tweet_time_source,
     }
 
 
@@ -187,6 +184,8 @@ def ingest(root: Path, workers: int = config.TESSERACT_WORKERS):
                         result["file_size"],
                         result["minhash_signature"],
                         result["mentioned_users"],
+                        result["tweet_time"],
+                        result["tweet_time_source"],
                     )
                     done += 1
                     if done % config.COMMIT_BATCH_SIZE == 0:

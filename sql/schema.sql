@@ -17,7 +17,9 @@ CREATE TABLE screenshots (
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     ocr_text_tsv TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', COALESCE(ocr_text, ''))) STORED,
     minhash_signature BYTEA,
-    mentioned_users TEXT[]
+    mentioned_users TEXT[],
+    tweet_time TIMESTAMPTZ,
+    tweet_time_source TEXT
 );
 
 CREATE INDEX idx_screenshots_tsv ON screenshots USING GIN (ocr_text_tsv);
@@ -25,3 +27,4 @@ CREATE INDEX idx_screenshots_trgm ON screenshots USING GIN (ocr_text gin_trgm_op
 CREATE INDEX idx_screenshots_created ON screenshots (created_at);
 CREATE INDEX idx_screenshots_created_local ON screenshots (created_at_local);
 CREATE INDEX idx_screenshots_mentioned_users ON screenshots USING GIN (mentioned_users);
+CREATE INDEX idx_screenshots_tweet_time ON screenshots (tweet_time);
