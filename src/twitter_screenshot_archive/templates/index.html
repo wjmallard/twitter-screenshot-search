@@ -45,7 +45,7 @@
         </div>
         <div class="info">
             <div class="date">{{ r.date }}</div>
-            <div class="meta">score: {{ "%.3f"|format(r.score) }} &mdash; <a href="/image?path={{ r.file_path }}" download class="action-link">download</a> &mdash; <a href="#" class="related-link" data-id="{{ r.id }}">related</a></div>
+            <div class="meta">score: {{ "%.3f"|format(r.score) }} &mdash; <a href="/image?path={{ r.file_path }}" download class="action-link">download</a> &mdash; <a href="#" class="related-link" data-id="{{ r.id }}">related</a> &mdash; <a href="#" class="timeline-link" data-id="{{ r.id }}">timeline</a></div>
             <div class="meta file-meta">{{ r.name }} &mdash; {{ r.width }}x{{ r.height }}{% if r.file_size %} &mdash; {{ r.file_size }}{% endif %}</div>
             <pre class="ocr">{{ r.ocr_text }}</pre>
         </div>
@@ -59,6 +59,21 @@
             <button class="lightbox-prev">&lsaquo;</button>
             <button class="lightbox-next">&rsaquo;</button>
             <img id="lightbox-img" src="" alt="">
+        </div>
+    </div>
+
+    <div id="timeline-overlay" class="overlay hidden">
+        <div class="overlay-backdrop"></div>
+        <div class="overlay-content timeline-content">
+            <div class="overlay-header">
+                <h2>Timeline</h2>
+                <button class="overlay-close">&times;</button>
+            </div>
+            <div class="timeline-strip">
+                <button class="timeline-nav timeline-prev">&lsaquo;</button>
+                <div id="timeline-cards" class="timeline-cards"></div>
+                <button class="timeline-nav timeline-next">&rsaquo;</button>
+            </div>
         </div>
     </div>
 

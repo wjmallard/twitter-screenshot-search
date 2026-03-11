@@ -12,7 +12,8 @@ from . import config
 from .db import (
     get_conn, search_fulltext, search_trigram, search_exact,
     count_fulltext, count_trigram, count_exact, count_screenshots,
-    load_all_signatures, get_screenshots_by_ids, signature_fingerprint,
+    load_all_signatures, get_screenshots_by_ids, get_timeline_neighbors,
+    signature_fingerprint,
 )
 from .minhash import build_lsh_index, query_related
 
@@ -205,6 +206,34 @@ def related(screenshot_id):
         r["similarity"] = round(sim_by_id[mid], 3)
         related_results.append(r)
     return jsonify({"source": source, "related": related_results})
+
+
+@app.route("/timeline/<int:screenshot_id>")
+def timeline(screenshot_id):
+    with get_conn() as conn:
+        before, focal, after = get_timeline_neighbors(conn, screenshot_id)
+    if focal is None:
+        abort(404)
+
+    def fmt(row):
+        row_id, file_path, ocr_text, created_at_local, tz, width, height, file_size = row
+        return {
+            "id": row_id,
+            "file_path": file_path,
+            "name": Path(file_path).name,
+            "ocr_text": ocr_text or "",
+            "date": created_at_local.strftime("%Y-%m-%d · %I:%M %p · %A") if created_at_local else "unknown",
+            "timezone": tz or "",
+            "width": width,
+            "height": height,
+            "file_size": _format_size(file_size),
+        }
+
+    return jsonify({
+        "before": [fmt(r) for r in before],
+        "focal": fmt(focal),
+        "after": [fmt(r) for r in after],
+    })
 
 
 def main():

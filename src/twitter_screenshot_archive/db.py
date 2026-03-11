@@ -175,6 +175,51 @@ def load_all_signatures(conn):
     ).fetchall()
 
 
+def get_timeline_neighbors(conn, screenshot_id, before=1, after=1):
+    """Get screenshots around a given screenshot in capture-time order.
+
+    Returns (before_rows, focal_row, after_rows) where each row is
+    (id, file_path, ocr_text, created_at_local, timezone, width, height, file_size).
+    """
+    focal = conn.execute(
+        """
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height, file_size, created_at
+        FROM screenshots WHERE id = %s
+        """,
+        (screenshot_id,),
+    ).fetchone()
+    if not focal:
+        return [], None, []
+
+    focal_time = focal[8]  # created_at
+    if focal_time is None:
+        return [], focal[:8], []
+
+    before_rows = conn.execute(
+        """
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height, file_size
+        FROM screenshots
+        WHERE (created_at, id) < (%s, %s) AND created_at IS NOT NULL
+        ORDER BY created_at DESC, id DESC
+        LIMIT %s
+        """,
+        (focal_time, screenshot_id, before),
+    ).fetchall()
+
+    after_rows = conn.execute(
+        """
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height, file_size
+        FROM screenshots
+        WHERE (created_at, id) > (%s, %s) AND created_at IS NOT NULL
+        ORDER BY created_at ASC, id ASC
+        LIMIT %s
+        """,
+        (focal_time, screenshot_id, after),
+    ).fetchall()
+
+    return list(reversed(before_rows)), focal[:8], list(after_rows)
+
+
 def get_screenshots_by_ids(conn, ids):
     """Fetch screenshot details for a list of IDs. Returns dict of {id: row_dict}."""
     if not ids:
