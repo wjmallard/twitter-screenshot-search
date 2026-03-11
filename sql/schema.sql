@@ -15,7 +15,8 @@ CREATE TABLE screenshots (
     height INT,
     file_size BIGINT,
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ocr_text_tsv TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', COALESCE(ocr_text, ''))) STORED
+    ocr_text_tsv TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', COALESCE(ocr_text, ''))) STORED,
+    minhash_signature BYTEA
 );
 
 CREATE INDEX idx_screenshots_tsv ON screenshots USING GIN (ocr_text_tsv);
