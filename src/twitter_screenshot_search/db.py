@@ -155,6 +155,14 @@ def count_screenshots(conn):
     return row[0]
 
 
+def signature_fingerprint(conn):
+    """Return (count, max_id) for cache invalidation of the LSH index."""
+    row = conn.execute(
+        "SELECT count(*), coalesce(max(id), 0) FROM screenshots WHERE minhash_signature IS NOT NULL"
+    ).fetchone()
+    return (row[0], row[1])
+
+
 def load_all_signatures(conn):
     """Load all (id, minhash_signature) pairs for LSH index building."""
     return conn.execute(
