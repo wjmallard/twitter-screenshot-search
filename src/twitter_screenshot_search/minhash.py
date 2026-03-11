@@ -1,7 +1,7 @@
 """MinHash signature computation for related-tweet search."""
 
 import numpy as np
-from datasketch import MinHash
+from datasketch import MinHash, MinHashLSH
 
 NUM_PERM = 128
 SHINGLE_K = 3
@@ -34,3 +34,37 @@ def signature_to_minhash(sig_bytes: bytes) -> MinHash:
     m = MinHash(num_perm=NUM_PERM)
     m.hashvalues = np.frombuffer(sig_bytes, dtype=np.uint64).copy()
     return m
+
+
+LSH_THRESHOLD = 0.2
+
+
+def build_lsh_index(rows):
+    """Build LSH index from (id, signature_bytes) pairs.
+
+    Returns (lsh_index, {id: MinHash} dict).
+    """
+    lsh = MinHashLSH(threshold=LSH_THRESHOLD, num_perm=NUM_PERM)
+    minhashes = {}
+    for row_id, sig_bytes in rows:
+        m = signature_to_minhash(sig_bytes)
+        minhashes[row_id] = m
+        lsh.insert(str(row_id), m)
+    return lsh, minhashes
+
+
+def query_related(lsh, minhashes, query_id, top_n=20):
+    """Find related items. Returns list of (id, similarity) sorted by similarity desc."""
+    if query_id not in minhashes:
+        return []
+    query_m = minhashes[query_id]
+    candidates = lsh.query(query_m)
+    results = []
+    for cand_str in candidates:
+        cand_id = int(cand_str)
+        if cand_id == query_id:
+            continue
+        sim = query_m.jaccard(minhashes[cand_id])
+        results.append((cand_id, sim))
+    results.sort(key=lambda x: x[1], reverse=True)
+    return results[:top_n]

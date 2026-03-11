@@ -3,17 +3,27 @@
 import mimetypes
 from pathlib import Path
 
-from flask import Flask, abort, render_template, request, send_file
+from flask import Flask, abort, jsonify, render_template, request, send_file
 
 from twitter_screenshot_search import config
 from twitter_screenshot_search.db import (
     get_conn, search_fulltext, search_trigram, search_exact,
     count_fulltext, count_trigram, count_exact, count_screenshots,
+    load_all_signatures, get_screenshots_by_ids,
 )
+from twitter_screenshot_search.minhash import build_lsh_index, query_related
 
 app = Flask(__name__)
 
 PER_PAGE = config.RESULTS_PER_PAGE
+
+# Build LSH index on startup
+with get_conn() as conn:
+    _sigs = load_all_signatures(conn)
+print(f"Building LSH index from {len(_sigs)} signatures...")
+_lsh, _minhashes = build_lsh_index(_sigs)
+del _sigs
+print("LSH index ready.")
 
 
 def _page_numbers(current, total):
@@ -108,6 +118,34 @@ def serve_image():
 
     mime = mimetypes.guess_type(str(p))[0] or "application/octet-stream"
     return send_file(p, mimetype=mime)
+
+
+@app.route("/related/<int:screenshot_id>")
+def related(screenshot_id):
+    matches = query_related(_lsh, _minhashes, screenshot_id)
+    if not matches:
+        return jsonify([])
+    match_ids = [mid for mid, _ in matches]
+    sim_by_id = dict(matches)
+    with get_conn() as conn:
+        screenshots = get_screenshots_by_ids(conn, match_ids)
+    results = []
+    for mid in match_ids:
+        if mid not in screenshots:
+            continue
+        s = screenshots[mid]
+        results.append({
+            "id": mid,
+            "file_path": s["file_path"],
+            "name": Path(s["file_path"]).name,
+            "ocr_text": s["ocr_text"] or "",
+            "date": s["created_at_local"].strftime("%Y-%m-%d · %I:%M %p · %A") if s["created_at_local"] else "unknown",
+            "timezone": s["timezone"] or "",
+            "width": s["width"],
+            "height": s["height"],
+            "similarity": round(sim_by_id[mid], 3),
+        })
+    return jsonify(results)
 
 
 def main():

@@ -152,3 +152,35 @@ def count_exact(conn, query):
 def count_screenshots(conn):
     row = conn.execute("SELECT count(*) FROM screenshots").fetchone()
     return row[0]
+
+
+def load_all_signatures(conn):
+    """Load all (id, minhash_signature) pairs for LSH index building."""
+    return conn.execute(
+        "SELECT id, minhash_signature FROM screenshots WHERE minhash_signature IS NOT NULL"
+    ).fetchall()
+
+
+def get_screenshots_by_ids(conn, ids):
+    """Fetch screenshot details for a list of IDs. Returns dict of {id: row_dict}."""
+    if not ids:
+        return {}
+    rows = conn.execute(
+        """
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height
+        FROM screenshots
+        WHERE id = ANY(%s)
+        """,
+        (list(ids),),
+    ).fetchall()
+    return {
+        row[0]: {
+            "file_path": row[1],
+            "ocr_text": row[2],
+            "created_at_local": row[3],
+            "timezone": row[4],
+            "width": row[5],
+            "height": row[6],
+        }
+        for row in rows
+    }
