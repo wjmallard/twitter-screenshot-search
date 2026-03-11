@@ -4,3 +4,9 @@ commit_batch_size: 50
 decay_half_life_days: 30
 results_per_page: 10
 flask_port: 5000
+
+# MCP semantic search (optional — defaults shown)
+lmstudio_url: http://localhost:1234
+embedding_model: text-embedding-embeddinggemma-300m
+embedding_batch_size: 128
+embedding_search_limit: 50

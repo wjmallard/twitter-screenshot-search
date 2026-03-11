@@ -16,9 +16,13 @@ dependencies = [
     "tqdm>=4.67.3",
 ]
 
+[project.optional-dependencies]
+mcp = ["mcp>=1.26"]
+
 [project.scripts]
 ingest = "twitter_screenshot_archive.ingest:main"
 search = "twitter_screenshot_archive.app:main"
+mcp-search = "twitter_screenshot_archive.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]

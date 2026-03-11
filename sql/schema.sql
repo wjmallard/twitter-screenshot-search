@@ -3,6 +3,7 @@ CREATE DATABASE twitter_screenshot_archive;
 \c twitter_screenshot_archive
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE screenshots (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -20,7 +21,8 @@ CREATE TABLE screenshots (
     minhash_signature BYTEA,
     mentioned_users TEXT[],
     tweet_time TIMESTAMPTZ,
-    tweet_time_source TEXT
+    tweet_time_source TEXT,
+    embedding vector(768)
 );
 
 CREATE INDEX idx_screenshots_tsv ON screenshots USING GIN (ocr_text_tsv);
