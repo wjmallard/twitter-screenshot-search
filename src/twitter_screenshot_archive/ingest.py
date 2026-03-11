@@ -1,6 +1,7 @@
 """Batch OCR runner for screenshot ingestion."""
 
 import json
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
@@ -74,6 +75,42 @@ def parse_dates_from_exif(img: Image.Image) -> tuple[datetime | None, datetime |
         return None, None, None
 
 
+_USERNAME_RE = re.compile(r"@([A-Za-z0-9_]{1,15})\b")
+
+# Common OCR false positives: single chars, digits, and short English words
+# that appear after @-like artifacts. Real handles like @ap, @un are kept.
+_USERNAME_BLACKLIST = frozenset(
+    list("abcdefghijklmnopqrstuvwxyz0123456789")
+    + [
+        "an",
+        "as",
+        "bo",
+        "by",
+        "dd",
+        "ft",
+        "is",
+        "ma",
+        "me",
+        "mo",
+        "mr",
+        "no",
+        "re",
+        "se",
+        "the",
+    ]
+)
+
+
+def extract_usernames(text: str) -> list[str]:
+    """Extract Twitter usernames from text, order-preserving dedup, lowercased."""
+    seen = {}
+    for match in _USERNAME_RE.finditer(text):
+        name = match.group(1).lower()
+        if name not in seen and name not in _USERNAME_BLACKLIST:
+            seen[name] = True
+    return list(seen)
+
+
 def preprocess(img: Image.Image) -> Image.Image:
     """Apply CLAHE contrast enhancement for dark-mode screenshot OCR."""
     if img.mode == "P" and "transparency" in img.info:
@@ -102,6 +139,7 @@ def process_image(path: Path) -> dict:
         "height": height,
         "file_size": path.stat().st_size,
         "minhash_signature": compute_signature(ocr_text),
+        "mentioned_users": extract_usernames(ocr_text),
     }
 
 
@@ -148,6 +186,7 @@ def ingest(root: Path, workers: int = config.TESSERACT_WORKERS):
                         result["height"],
                         result["file_size"],
                         result["minhash_signature"],
+                        result["mentioned_users"],
                     )
                     done += 1
                     if done % config.COMMIT_BATCH_SIZE == 0:
