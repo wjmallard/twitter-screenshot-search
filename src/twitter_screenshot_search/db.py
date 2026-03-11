@@ -20,12 +20,12 @@ def get_conn():
 
 
 def upsert_screenshot(conn, file_path, ocr_text, created_at, created_at_local, timezone, width, height,
-                      minhash_signature=None):
+                      file_size=None, minhash_signature=None):
     conn.execute(
         """
         INSERT INTO screenshots (file_path, ocr_text, created_at, created_at_local, timezone, width, height,
-                                 minhash_signature)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                 file_size, minhash_signature)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (file_path) DO UPDATE SET
             ocr_text = EXCLUDED.ocr_text,
             created_at = EXCLUDED.created_at,
@@ -33,9 +33,10 @@ def upsert_screenshot(conn, file_path, ocr_text, created_at, created_at_local, t
             timezone = EXCLUDED.timezone,
             width = EXCLUDED.width,
             height = EXCLUDED.height,
+            file_size = EXCLUDED.file_size,
             minhash_signature = EXCLUDED.minhash_signature
         """,
-        (file_path, ocr_text, created_at, created_at_local, timezone, width, height, minhash_signature),
+        (file_path, ocr_text, created_at, created_at_local, timezone, width, height, file_size, minhash_signature),
     )
 
 

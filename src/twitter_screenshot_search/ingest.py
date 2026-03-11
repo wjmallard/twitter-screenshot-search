@@ -100,6 +100,7 @@ def process_image(path: Path) -> dict:
         "timezone": tz,
         "width": width,
         "height": height,
+        "file_size": path.stat().st_size,
         "minhash_signature": compute_signature(ocr_text),
     }
 
@@ -145,6 +146,7 @@ def ingest(root: Path, workers: int = config.TESSERACT_WORKERS):
                         result["timezone"],
                         result["width"],
                         result["height"],
+                        result["file_size"],
                         result["minhash_signature"],
                     )
                     done += 1
