@@ -1,6 +1,7 @@
 """Flask search GUI for screenshot search."""
 
 import mimetypes
+import os
 from pathlib import Path
 
 from flask import Flask, abort, jsonify, render_template, request, send_file
@@ -17,13 +18,20 @@ app = Flask(__name__)
 
 PER_PAGE = config.RESULTS_PER_PAGE
 
-# Build LSH index on startup
-with get_conn() as conn:
-    _sigs = load_all_signatures(conn)
-print(f"Building LSH index from {len(_sigs)} signatures...")
-_lsh, _minhashes = build_lsh_index(_sigs)
-del _sigs
-print("LSH index ready.")
+_lsh = None
+_minhashes = {}
+
+
+def _init_index():
+    """Build LSH index from all stored MinHash signatures."""
+    global _lsh, _minhashes
+    if _lsh is not None:
+        return
+    with get_conn() as conn:
+        sigs = load_all_signatures(conn)
+    print(f"Building LSH index from {len(sigs)} signatures...")
+    _lsh, _minhashes = build_lsh_index(sigs)
+    print("LSH index ready.")
 
 
 def _format_size(size_bytes):
@@ -168,6 +176,11 @@ def related(screenshot_id):
 
 
 def main():
+    # When Flask's debug reloader is active, the parent process only monitors
+    # files and never serves requests. Skip the expensive index build there.
+    # WERKZEUG_RUN_MAIN is set to 'true' only in the child (serving) process.
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        _init_index()
     app.run(debug=True, port=config.FLASK_PORT)
 
 
