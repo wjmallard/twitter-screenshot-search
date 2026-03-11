@@ -1,7 +1,6 @@
 """Batch OCR runner for screenshot ingestion."""
 
 import json
-import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
@@ -20,6 +19,7 @@ from . import config
 from .dates import _parse_tz_offset, extract_tweet_time
 from .db import get_conn, images_in_db, upsert_screenshot
 from .minhash import compute_signature
+from .usernames import extract_usernames
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".heic", ".tiff", ".bmp"}
 
 
@@ -68,41 +68,6 @@ def parse_dates_from_exif(img: Image.Image) -> tuple[datetime | None, datetime |
     except Exception:
         return None, None, None
 
-
-_USERNAME_RE = re.compile(r"@([A-Za-z0-9_]{1,15})\b")
-
-# Common OCR false positives: single chars, digits, and short English words
-# that appear after @-like artifacts. Real handles like @ap, @un are kept.
-_USERNAME_BLACKLIST = frozenset(
-    list("abcdefghijklmnopqrstuvwxyz0123456789")
-    + [
-        "an",
-        "as",
-        "bo",
-        "by",
-        "dd",
-        "ft",
-        "is",
-        "ma",
-        "me",
-        "mo",
-        "mr",
-        "no",
-        "re",
-        "se",
-        "the",
-    ]
-)
-
-
-def extract_usernames(text: str) -> list[str]:
-    """Extract Twitter usernames from text, order-preserving dedup, lowercased."""
-    seen = {}
-    for match in _USERNAME_RE.finditer(text):
-        name = match.group(1).lower()
-        if name not in seen and name not in _USERNAME_BLACKLIST:
-            seen[name] = True
-    return list(seen)
 
 
 def preprocess(img: Image.Image) -> Image.Image:
