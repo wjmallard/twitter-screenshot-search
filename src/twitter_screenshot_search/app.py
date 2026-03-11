@@ -26,6 +26,16 @@ del _sigs
 print("LSH index ready.")
 
 
+def _format_size(size_bytes):
+    """Format file size in human-readable units."""
+    if size_bytes is None:
+        return ""
+    for unit in ("B", "kB", "MB", "GB"):
+        if size_bytes < 1000 or unit == "GB":
+            return f"{size_bytes:.1f} {unit}" if unit != "B" else f"{size_bytes} B"
+        size_bytes /= 1000
+
+
 def _page_numbers(current, total):
     """Generate page numbers with ellipsis. Always returns exactly 7 slots when total >= 7."""
     if total <= 7:
@@ -61,7 +71,7 @@ def index():
             else:
                 rows = search_fulltext(conn, q, limit=PER_PAGE, offset=offset, sort=sort)
                 total_results = count_fulltext(conn, q)
-            for row_id, file_path, ocr_text, created_at_local, tz, width, height, score in rows:
+            for row_id, file_path, ocr_text, created_at_local, tz, width, height, file_size, score in rows:
                 results.append({
                     "id": row_id,
                     "file_path": file_path,
@@ -71,6 +81,7 @@ def index():
                     "timezone": tz or "",
                     "width": width,
                     "height": height,
+                    "file_size": _format_size(file_size),
                     "score": score,
                 })
 
@@ -131,6 +142,7 @@ def _format_screenshot(s, screenshot_id):
         "timezone": s["timezone"] or "",
         "width": s["width"],
         "height": s["height"],
+        "file_size": _format_size(s["file_size"]),
     }
 
 

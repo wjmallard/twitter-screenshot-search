@@ -66,7 +66,8 @@
                 </div>
                 <div class="info">
                     <div class="date">${r.date}</div>
-                    <div class="meta">${r.name} &mdash; ${r.width}x${r.height}${simText} &mdash; <a href="/image?path=${encodeURIComponent(r.file_path)}" download class="action-link">download</a> &mdash; <a href="#" class="related-link" data-id="${r.id}">related</a></div>
+                    <div class="meta">${simText ? `similarity: ${extra.similarity} &mdash; ` : ''}<a href="/image?path=${encodeURIComponent(r.file_path)}" download class="action-link">download</a> &mdash; <a href="#" class="related-link" data-id="${r.id}">related</a></div>
+                    <div class="meta file-meta">${r.name} &mdash; ${r.width}x${r.height}${r.file_size ? ` &mdash; ${r.file_size}` : ''}</div>
                     <pre class="ocr">${r.ocr_text.replace(/</g, '&lt;')}</pre>
                 </div>
             </div>`;

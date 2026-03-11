@@ -82,7 +82,7 @@ def search_fulltext(conn, query, limit=50, offset=0, sort="best"):
     params = (query, query) + (query,) * extra + (limit, offset)
     return conn.execute(
         f"""
-        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height,
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height, file_size,
                ts_rank(ocr_text_tsv, websearch_to_tsquery('english', %s)) AS score
         FROM screenshots
         WHERE ocr_text_tsv @@ websearch_to_tsquery('english', %s)
@@ -98,7 +98,7 @@ def search_trigram(conn, query, limit=50, offset=0, sort="best"):
     params = (query, query) + (query,) * extra + (limit, offset)
     return conn.execute(
         f"""
-        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height,
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height, file_size,
                word_similarity(%s, ocr_text) AS score
         FROM screenshots
         WHERE %s <<%% ocr_text
@@ -115,7 +115,7 @@ def search_exact(conn, query, limit=50, offset=0, sort="best"):
     params = (like_param,) + (query,) * extra + (limit, offset)
     return conn.execute(
         f"""
-        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height,
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height, file_size,
                1.0 AS score
         FROM screenshots
         WHERE ocr_text ILIKE %s
@@ -168,7 +168,7 @@ def get_screenshots_by_ids(conn, ids):
         return {}
     rows = conn.execute(
         """
-        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height
+        SELECT id, file_path, ocr_text, created_at_local, timezone, width, height, file_size
         FROM screenshots
         WHERE id = ANY(%s)
         """,
@@ -182,6 +182,7 @@ def get_screenshots_by_ids(conn, ids):
             "timezone": row[4],
             "width": row[5],
             "height": row[6],
+            "file_size": row[7],
         }
         for row in rows
     }
