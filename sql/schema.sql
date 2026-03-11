@@ -8,6 +8,7 @@ CREATE TABLE screenshots (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     file_path TEXT NOT NULL UNIQUE,
     ocr_text TEXT,
+    ocr_text_clean TEXT,
     created_at TIMESTAMPTZ,
     created_at_local TIMESTAMP,
     timezone TEXT,
