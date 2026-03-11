@@ -1,4 +1,4 @@
-# Twitter Screenshot Search
+# Twitter Archive
 
 Full-text search for a Twitter screenshot archive. OCR-indexes images into Postgres and serves them via a local fuzzy search UI.
 
