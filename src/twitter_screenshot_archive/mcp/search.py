@@ -28,6 +28,7 @@ async def search_tweets(
     limit: int = DEFAULT_SEARCH_LIMIT,
     after: str | None = None,
     before: str | None = None,
+    sort: str = "relevance",
 ) -> str:
     """Search the Twitter screenshot archive by semantic similarity.
 
@@ -41,6 +42,8 @@ async def search_tweets(
         limit: Max results to return (default 10).
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
+        sort: "relevance" (default, by similarity) or "chronological"
+              (by tweet time, oldest first).
     """
     limit = max(1, min(limit, 200))
 
@@ -74,7 +77,7 @@ async def search_tweets(
                    1 - (embedding <=> %(vec)s::vector) AS similarity
             FROM screenshots
             WHERE {where}
-            ORDER BY embedding <=> %(vec)s::vector
+            ORDER BY {"COALESCE(tweet_time, created_at)" if sort == "chronological" else "embedding <=> %(vec)s::vector"}
             LIMIT %(limit)s
             """,
             params,
