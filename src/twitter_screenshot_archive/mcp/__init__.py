@@ -6,7 +6,7 @@ Subpackage layout:
     embedding.py   — LM Studio embedding helpers, backfill
     orient.py      — now tool
     search.py      — search_tweets tool
-    drill.py       — get_tweet tool
+    drill.py       — get_tweet, browse_timeline tools
 """
 
 # Import tool modules to trigger @mcp.tool() registration
