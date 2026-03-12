@@ -72,8 +72,10 @@ async def backfill_embeddings():
                 rows = conn.execute(
                     "SELECT id, ocr_text_clean FROM screenshots "
                     "WHERE ocr_text_clean IS NOT NULL AND ocr_text_clean != '' AND embedding IS NULL "
-                    "ORDER BY id LIMIT %s",
-                    (BACKFILL_BATCH_SIZE,),
+                    "ORDER BY id LIMIT %(limit)s",
+                    {
+                        "limit": BACKFILL_BATCH_SIZE,
+                    },
                 ).fetchall()
 
                 if not rows:
@@ -95,8 +97,11 @@ async def backfill_embeddings():
 
                 for row_id, emb in zip(ids, embeddings):
                     conn.execute(
-                        "UPDATE screenshots SET embedding = %s::vector WHERE id = %s",
-                        (vec_literal(emb), row_id),
+                        "UPDATE screenshots SET embedding = %(vec)s::vector WHERE id = %(id)s",
+                        {
+                            "vec": vec_literal(emb),
+                            "id": row_id,
+                        },
                     )
                 conn.commit()
                 progress.update(len(ids))

@@ -16,9 +16,11 @@ async def get_tweet(id: int) -> str:
             """
             SELECT id, ocr_text_clean, tweet_time, mentioned_users
             FROM screenshots
-            WHERE id = %s
+            WHERE id = %(id)s
             """,
-            (id,),
+            {
+                "id": id,
+            },
         ).fetchone()
 
     if not row:
