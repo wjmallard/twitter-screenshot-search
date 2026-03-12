@@ -31,3 +31,4 @@ CREATE INDEX idx_screenshots_created ON screenshots (created_at);
 CREATE INDEX idx_screenshots_created_local ON screenshots (created_at_local);
 CREATE INDEX idx_screenshots_mentioned_users ON screenshots USING GIN (mentioned_users);
 CREATE INDEX idx_screenshots_tweet_time ON screenshots (tweet_time);
+CREATE INDEX idx_screenshots_embedding ON screenshots USING hnsw (embedding vector_cosine_ops);

@@ -10,3 +10,10 @@ lmstudio_url: http://localhost:1234
 embedding_model: text-embedding-embeddinggemma-300m
 embedding_batch_size: 128
 embedding_search_limit: 50
+
+# Clustering (optional — defaults shown)
+coarse_similarity_floor: 0.15
+topic_sim_threshold_pct: 0.30
+pca_n_components: 15
+time_weight: 2.0
+cluster_min_size: 3
