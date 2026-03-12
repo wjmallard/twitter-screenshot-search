@@ -19,3 +19,10 @@ BACKFILL_BATCH_SIZE = _raw.get("embedding_batch_size", 64)
 DEFAULT_SEARCH_LIMIT = _raw.get("embedding_search_limit", 10)
 SEARCH_SIMILARITY_FLOOR = _raw.get("search_similarity_floor", 0.3)
 SNIPPET_MAX_CHARS = _raw.get("snippet_max_chars_mcp", 500)
+
+# Clustering
+PCA_N_COMPONENTS = _raw.get("pca_n_components", 15)
+TIME_WEIGHT = _raw.get("time_weight", 2.0)
+CLUSTER_MIN_SIZE = _raw.get("cluster_min_size", 3)
+CLUSTER_MIN_SAMPLES = _raw.get("cluster_min_samples", None)  # defaults to CLUSTER_MIN_SIZE
+TOPIC_SIM_THRESHOLD_PCT = _raw.get("topic_sim_threshold_pct", 0.30)
