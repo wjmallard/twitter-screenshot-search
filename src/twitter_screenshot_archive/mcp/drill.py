@@ -1,8 +1,11 @@
-"""Drill tools — get_tweet, browse_timeline."""
+"""Drill tools — get_tweet, browse_timeline, find_related."""
 
 from ..db import get_conn
+from ..minhash import query_related
+from . import server
 from .config import SNIPPET_MAX_CHARS
-from .server import mcp
+
+mcp = server.mcp
 
 
 @mcp.tool()
@@ -123,5 +126,55 @@ async def browse_timeline(
     lines.append(f">>> {_format_row(focal[:4])} <<<")
     for row in after_rows:
         lines.append(_format_row(row))
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def find_related(id: int, limit: int = 10) -> str:
+    """Find tweets with similar wording to a specific tweet. Lexical similarity
+    (shared phrases), not semantic. Use to find other parts of the same thread,
+    near-duplicates, or replies that quote the parent.
+
+    Args:
+        id: Screenshot ID to find related tweets for.
+        limit: Maximum number of results (default 10).
+    """
+    matches = query_related(server._lsh, server._minhashes, id, top_n=limit)
+
+    if not matches:
+        return f"No related tweets found for ID {id}"
+
+    match_ids = [mid for mid, _ in matches]
+    sim_by_id = dict(matches)
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, ocr_text_clean, tweet_time, mentioned_users
+            FROM screenshots
+            WHERE id = ANY(%(ids)s)
+            """,
+            {
+                "ids": match_ids,
+            },
+        ).fetchall()
+
+    row_by_id = {row[0]: row for row in rows}
+
+    lines = []
+    for mid in match_ids:
+        row = row_by_id.get(mid)
+        if not row:
+            continue
+        sim = sim_by_id[mid]
+        parts = [f"[ID {mid}] sim={sim:.2f}"]
+        if row[2]:  # tweet_time
+            parts.append(row[2].isoformat())
+        if row[3]:  # mentioned_users
+            parts.append(", ".join("@" + u for u in row[3]))
+        snippet = (row[1] or "(no text)")[:SNIPPET_MAX_CHARS]
+        parts.append(snippet)
+        lines.append(" | ".join(parts))
 
     return "\n".join(lines)
