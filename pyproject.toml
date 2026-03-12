@@ -22,7 +22,7 @@ mcp = ["mcp>=1.26"]
 [project.scripts]
 ingest = "twitter_screenshot_archive.ingest:main"
 search = "twitter_screenshot_archive.app:main"
-mcp-search = "twitter_screenshot_archive.mcp_server:main"
+mcp-search = "twitter_screenshot_archive.mcp:main"
 
 [build-system]
 requires = ["hatchling"]
