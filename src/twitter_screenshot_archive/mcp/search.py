@@ -3,7 +3,12 @@
 import httpx
 
 from ..db import get_conn
-from .config import DEFAULT_SEARCH_LIMIT, LMSTUDIO_URL, SNIPPET_MAX_CHARS
+from .config import (
+    DEFAULT_SEARCH_LIMIT,
+    LMSTUDIO_URL,
+    SEARCH_SIMILARITY_FLOOR,
+    SNIPPET_MAX_CHARS,
+)
 from .embedding import embed_texts, vec_literal
 from .server import mcp
 
@@ -55,10 +60,14 @@ async def search_tweets(
 
     vec = vec_literal(query_emb)
 
-    conditions = ["embedding IS NOT NULL"]
+    conditions = [
+        "embedding IS NOT NULL",
+        "1 - (embedding <=> %(vec)s::vector) >= %(floor)s",
+    ]
     params: dict = {
         "vec": vec,
         "limit": limit,
+        "floor": SEARCH_SIMILARITY_FLOOR,
     }
 
     if after:
