@@ -73,20 +73,12 @@ async def _fetch_relevant(
                 f"{date_where}"
             )
 
-        sql = " UNION ALL ".join(branches)
+        sql = " UNION ".join(branches)
 
         with get_conn() as conn:
             db_rows = conn.execute(sql, params).fetchall()
 
-        # Dedup by id (UNION ALL across topics can return the same row twice)
-        seen: set[int] = set()
-        deduped = []
-        for r in db_rows:
-            if r[0] not in seen:
-                seen.add(r[0])
-                deduped.append(r)
-
-        rows = _parse_rows(deduped)
+        rows = _parse_rows(db_rows)
 
         # Numpy refinement: top TOPIC_SIM_THRESHOLD_PCT
         if rows:
