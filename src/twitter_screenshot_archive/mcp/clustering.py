@@ -6,7 +6,7 @@ import httpx
 import numpy as np
 
 from ..db import get_conn
-from .config import TOPIC_SIM_THRESHOLD_PCT
+from .config import CLUSTER_MIN_SIZE, TOPIC_SIM_THRESHOLD_PCT
 from .embedding import embed_texts
 
 
@@ -73,6 +73,10 @@ async def _fetch_relevant(
 
         # Keep top TOPIC_SIM_THRESHOLD_PCT of the distribution
         threshold = np.quantile(max_sims, 1.0 - TOPIC_SIM_THRESHOLD_PCT)
-        rows = [r for r, s in zip(rows, max_sims) if s >= threshold]
+        filtered = [r for r, s in zip(rows, max_sims) if s >= threshold]
+
+        # Don't discard below cluster_min_size — return everything rather
+        # than losing rows that the caller can still use as a single group
+        rows = filtered if len(filtered) >= CLUSTER_MIN_SIZE else rows
 
     return rows
