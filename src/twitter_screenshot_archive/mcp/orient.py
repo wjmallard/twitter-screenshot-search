@@ -39,3 +39,36 @@ async def archive_range() -> str:
         f"First: {row[0].isoformat()}\n"
         f"Last: {row[1].isoformat()}"
     )
+
+
+@mcp.tool()
+async def count_screenshots(
+    after: str | None = None,
+    before: str | None = None,
+) -> str:
+    """Count screenshots in a time window. Use to gauge density before
+    searching.
+
+    Args:
+        after: Only count screenshots after this date (YYYY-MM-DD).
+        before: Only count screenshots before this date (YYYY-MM-DD).
+    """
+    conditions = []
+    params: dict = {}
+
+    if after:
+        conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
+        params["after"] = after
+    if before:
+        conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+        params["before"] = before
+
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+    with get_conn() as conn:
+        row = conn.execute(
+            f"SELECT count(*) FROM screenshots {where}",
+            params,
+        ).fetchone()
+
+    return str(row[0])
