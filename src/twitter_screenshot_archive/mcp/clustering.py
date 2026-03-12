@@ -6,7 +6,17 @@ import httpx
 import numpy as np
 
 from ..db import get_conn
-from .config import CLUSTER_MIN_SIZE, COARSE_SIMILARITY_FLOOR, TOPIC_SIM_THRESHOLD_PCT
+from sklearn.cluster import HDBSCAN
+from sklearn.decomposition import PCA
+
+from .config import (
+    CLUSTER_MIN_SAMPLES,
+    CLUSTER_MIN_SIZE,
+    COARSE_SIMILARITY_FLOOR,
+    PCA_N_COMPONENTS,
+    TIME_WEIGHT,
+    TOPIC_SIM_THRESHOLD_PCT,
+)
 from .embedding import embed_texts, vec_literal
 
 
@@ -120,3 +130,95 @@ async def _fetch_relevant(
         ).fetchall()
 
     return _parse_rows(db_rows)
+
+
+def _build_cluster(members: list[dict]) -> dict:
+    """Build a cluster dict from its member rows."""
+    # Medoid: member with highest avg cosine sim to all others (original space)
+    vecs = np.array([m["embedding"] for m in members], dtype=np.float32)
+    norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+    vecs_norm = vecs / np.where(norms == 0, 1, norms)
+    sim_matrix = vecs_norm @ vecs_norm.T  # (k, k)
+    avg_sims = sim_matrix.mean(axis=1)
+    medoid_idx = int(avg_sims.argmax())
+
+    # Date span
+    times = [m["tweet_time"] or m["created_at"] for m in members]
+    date_start = min(times)
+    date_end = max(times)
+
+    # Top mentioned users
+    user_counts: dict[str, int] = {}
+    for m in members:
+        for u in (m["mentioned_users"] or []):
+            user_counts[u] = user_counts.get(u, 0) + 1
+    top_users = sorted(user_counts, key=user_counts.get, reverse=True)[:5]
+
+    return {
+        "medoid": members[medoid_idx],
+        "count": len(members),
+        "date_start": date_start,
+        "date_end": date_end,
+        "top_users": top_users,
+        "members": members,
+    }
+
+
+def _cluster(rows: list[dict], max_topics: int = 10) -> list[dict]:
+    """PCA + HDBSCAN clustering pipeline.
+
+    Returns list of cluster dicts sorted by size descending.
+    """
+    n = len(rows)
+
+    if not rows:
+        return []
+
+    if n < CLUSTER_MIN_SIZE:
+        return [_build_cluster(rows)]
+
+    # Extract embedding matrix and timestamps
+    embeddings = np.array([r["embedding"] for r in rows], dtype=np.float32)
+    timestamps = np.array([
+        (r["tweet_time"] or r["created_at"]).timestamp()
+        for r in rows
+    ], dtype=np.float64)
+
+    # PCA — cap components at n_rows
+    n_components = min(n, PCA_N_COMPONENTS)
+    reduced = PCA(n_components=n_components).fit_transform(embeddings)
+
+    # Normalize timestamps to [0, 1] and scale
+    t_min, t_max = timestamps.min(), timestamps.max()
+    if t_max > t_min:
+        t_norm = (timestamps - t_min) / (t_max - t_min)
+    else:
+        t_norm = np.zeros_like(timestamps)
+    t_scaled = t_norm * TIME_WEIGHT
+
+    # Append time as final dimension
+    features = np.column_stack([reduced, t_scaled])
+
+    # HDBSCAN
+    min_samples = CLUSTER_MIN_SAMPLES if CLUSTER_MIN_SAMPLES is not None else CLUSTER_MIN_SIZE
+    labels = HDBSCAN(
+        min_cluster_size=CLUSTER_MIN_SIZE,
+        min_samples=min_samples,
+        copy=True,
+    ).fit_predict(features)
+
+    # Check if all noise
+    unique_labels = set(labels)
+    unique_labels.discard(-1)
+    if not unique_labels:
+        return [_build_cluster(rows)]
+
+    # Build clusters
+    clusters = []
+    for label in unique_labels:
+        members = [rows[i] for i in range(n) if labels[i] == label]
+        clusters.append(_build_cluster(members))
+
+    # Sort by size descending, truncate
+    clusters.sort(key=lambda c: c["count"], reverse=True)
+    return clusters[:max_topics]
