@@ -6,6 +6,7 @@ import httpx
 import numpy as np
 
 from ..db import get_conn
+from ..minhash import signature_to_minhash
 from sklearn.cluster import HDBSCAN
 from sklearn.decomposition import PCA
 
@@ -31,6 +32,7 @@ def _parse_rows(db_rows: list) -> list[dict]:
             "mentioned_users": r[3],
             "embedding": np.array(json.loads(r[4]), dtype=np.float32),
             "created_at": r[5],
+            "minhash_signature": r[6],
         })
     return rows
 
@@ -76,7 +78,7 @@ async def _fetch_relevant(
             params[key] = vec_literal(emb)
             branches.append(
                 f"SELECT id, ocr_text_clean, tweet_time, mentioned_users, "
-                f"embedding::text, created_at "
+                f"embedding::text, created_at, minhash_signature "
                 f"FROM screenshots "
                 f"WHERE embedding IS NOT NULL "
                 f"AND 1 - (embedding <=> %({key})s::vector) >= %(floor)s"
@@ -122,7 +124,7 @@ async def _fetch_relevant(
         db_rows = conn.execute(
             f"""
             SELECT id, ocr_text_clean, tweet_time, mentioned_users,
-                   embedding::text, created_at
+                   embedding::text, created_at, minhash_signature
             FROM screenshots
             WHERE {where}
             """,
@@ -130,6 +132,57 @@ async def _fetch_relevant(
         ).fetchall()
 
     return _parse_rows(db_rows)
+
+
+_DEDUP_THRESHOLD = 0.8
+
+
+def _dedup_members(members: list[dict]) -> list[dict]:
+    """Deduplicate within a cluster using MinHash Jaccard similarity.
+
+    Groups members with similarity >= _DEDUP_THRESHOLD, keeps the earliest
+    screenshot from each group.
+    """
+    # Build MinHash objects for members that have signatures
+    minhashes = {}
+    for m in members:
+        sig = m.get("minhash_signature")
+        if sig:
+            minhashes[m["id"]] = signature_to_minhash(bytes(sig))
+
+    # Union-find to group duplicates
+    parent: dict[int, int] = {}
+
+    def find(x: int) -> int:
+        while parent.get(x, x) != x:
+            parent[x] = parent.get(parent[x], parent[x])
+            x = parent[x]
+        return x
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    ids_with_sig = list(minhashes.keys())
+    for i in range(len(ids_with_sig)):
+        for j in range(i + 1, len(ids_with_sig)):
+            a, b = ids_with_sig[i], ids_with_sig[j]
+            if minhashes[a].jaccard(minhashes[b]) >= _DEDUP_THRESHOLD:
+                union(a, b)
+
+    # Group members by their root, pick earliest per group
+    groups: dict[int, list[dict]] = {}
+    for m in members:
+        root = find(m["id"]) if m["id"] in minhashes else m["id"]
+        groups.setdefault(root, []).append(m)
+
+    deduped = []
+    for group in groups.values():
+        earliest = min(group, key=lambda m: m["tweet_time"] or m["created_at"])
+        deduped.append(earliest)
+
+    return deduped
 
 
 def _build_cluster(members: list[dict]) -> dict:
@@ -175,7 +228,7 @@ def _cluster(rows: list[dict], max_topics: int = 10) -> list[dict]:
         return []
 
     if n < CLUSTER_MIN_SIZE:
-        return [_build_cluster(rows)]
+        return [_build_cluster(_dedup_members(rows))]
 
     # Extract embedding matrix and timestamps
     embeddings = np.array([r["embedding"] for r in rows], dtype=np.float32)
@@ -211,12 +264,13 @@ def _cluster(rows: list[dict], max_topics: int = 10) -> list[dict]:
     unique_labels = set(labels)
     unique_labels.discard(-1)
     if not unique_labels:
-        return [_build_cluster(rows)]
+        return [_build_cluster(_dedup_members(rows))]
 
-    # Build clusters
+    # Build clusters (dedup within each before computing stats)
     clusters = []
     for label in unique_labels:
         members = [rows[i] for i in range(n) if labels[i] == label]
+        members = _dedup_members(members)
         clusters.append(_build_cluster(members))
 
     # Sort by size descending, truncate
