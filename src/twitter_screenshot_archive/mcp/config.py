@@ -15,7 +15,7 @@ except FileNotFoundError:
 LMSTUDIO_URL = _raw.get("lmstudio_url", "http://localhost:1234")
 EMBEDDING_MODEL = _raw.get("embedding_model", "text-embedding-embeddinggemma-300m")
 EMBEDDING_DIM = 768
-BACKFILL_BATCH_SIZE = _raw.get("embedding_batch_size", 64)
+BACKFILL_BATCH_SIZE = _raw.get("embedding_batch_size", 128)
 DEFAULT_SEARCH_LIMIT = _raw.get("embedding_search_limit", 10)
 SEARCH_SIMILARITY_FLOOR = _raw.get("search_similarity_floor", 0.3)
 SNIPPET_MAX_CHARS = _raw.get("snippet_max_chars_mcp", 500)
