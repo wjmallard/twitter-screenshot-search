@@ -20,9 +20,9 @@ web = ["flask>=3.1.3"]
 mcp = ["mcp>=1.26", "scikit-learn>=1.3", "numpy"]
 
 [project.scripts]
-ingest = "twitter_screenshot_archive.core.ingest:main"
-web = "twitter_screenshot_archive.web:main"
-mcp = "twitter_screenshot_archive.mcp:main"
+tsa-ingest = "twitter_screenshot_archive.core.ingest:main"
+tsa-web = "twitter_screenshot_archive.web:main"
+tsa-mcp = "twitter_screenshot_archive.mcp:main"
 
 [build-system]
 requires = ["hatchling"]

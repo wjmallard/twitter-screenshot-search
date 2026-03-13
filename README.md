@@ -58,7 +58,7 @@ uv sync --extra web --extra mcp  # everything
 ### Ingest
 
 ```bash
-uv run ingest
+uv run tsa-ingest
 ```
 
 1. Walk the screenshot directory
@@ -72,7 +72,7 @@ uv run ingest
 ### Search (optional)
 
 ```bash
-uv run web
+uv run tsa-web
 ```
 
 Runs a local webserver at `http://localhost:5000`.
@@ -107,7 +107,7 @@ Install with `uv sync --extra mcp` (see [Install Dependencies](#install-dependen
 #### Run
 
 ```bash
-uv run mcp
+uv run tsa-mcp
 ```
 
 On first run, embeds all OCR text via LM Studio. Subsequent starts catch up on new entries only.
@@ -152,7 +152,7 @@ Edit `mcp_prompt.txt` with your interests, terminology, and preferences. This is
   "mcpServers": {
     "twitter-archive": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/twitter-screenshot-archive", "mcp"]
+      "args": ["run", "--directory", "/path/to/twitter-screenshot-archive", "tsa-mcp"]
     }
   }
 }
