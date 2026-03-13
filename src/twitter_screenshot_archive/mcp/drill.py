@@ -221,10 +221,17 @@ async def search_by_user(
         sort_label = "newest first"
 
     with get_conn() as conn:
-        total = conn.execute(
-            f"SELECT COUNT(*) FROM screenshots WHERE {where}",
+        stats = conn.execute(
+            f"""
+            SELECT COUNT(*),
+                   MIN(COALESCE(tweet_time, created_at)),
+                   MAX(COALESCE(tweet_time, created_at))
+            FROM screenshots
+            WHERE {where}
+            """,
             params,
-        ).fetchone()[0]
+        ).fetchone()
+        total, earliest, latest = stats
 
         rows = conn.execute(
             f"""
@@ -240,10 +247,14 @@ async def search_by_user(
     if not rows:
         return f"No tweets found mentioning @{handle}"
 
+    date_span = ""
+    if earliest and latest:
+        date_span = f"{earliest.strftime('%Y-%m-%d')} — {latest.strftime('%Y-%m-%d')}"
+
     if len(rows) < total:
-        header = f"Showing {len(rows)} of {total} tweets mentioning @{handle} ({sort_label})"
+        header = f"{total} tweets mentioning @{handle} ({date_span}, showing {len(rows)} {sort_label})"
     else:
-        header = f"Found {total} tweets mentioning @{handle} ({sort_label})"
+        header = f"{total} tweets mentioning @{handle} ({date_span}, {sort_label})"
     lines = [header + "\n"]
     for row in rows:
         lines.append(_format_row(row))
