@@ -19,6 +19,7 @@ from .config import (
     TOPIC_SIM_THRESHOLD_PCT,
 )
 from .embedding import embed_texts, vec_literal
+from .utils import _merge_similar_handles
 
 
 def _parse_rows(db_rows: list) -> list[dict]:
@@ -211,6 +212,7 @@ def _build_cluster(members: list[dict]) -> dict:
     for m in members:
         for u in (m["mentioned_users"] or []):
             user_counts[u] = user_counts.get(u, 0) + 1
+    user_counts = _merge_similar_handles(user_counts)
     top_users = sorted(user_counts, key=user_counts.get, reverse=True)[:5]
 
     return {

@@ -6,6 +6,7 @@ from . import server
 from .config import (
     SNIPPET_MAX_CHARS,
 )
+from .utils import _dedup_handles
 
 mcp = server.mcp
 
@@ -47,7 +48,7 @@ def _format_row(row) -> str:
     if tweet_time:
         parts.append(tweet_time.isoformat())
     if mentioned:
-        parts.append(", ".join("@" + u for u in mentioned))
+        parts.append(", ".join("@" + u for u in _dedup_handles(mentioned)))
     snippet = (text or "(no text)")[:SNIPPET_MAX_CHARS]
     parts.append(snippet)
     return " | ".join(parts)

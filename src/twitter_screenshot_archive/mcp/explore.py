@@ -12,6 +12,7 @@ from .config import (
 )
 from .embedding import vec_literal
 from .server import mcp
+from .utils import _merge_similar_handles
 
 
 def _pick_snippets(medoid: dict, members: list[dict], max_snippets: int) -> list[dict]:
@@ -164,6 +165,8 @@ async def top_users(
         for u in (r["mentioned_users"] or []):
             user_counts[u] = user_counts.get(u, 0) + 1
 
+    user_counts = _merge_similar_handles(user_counts)
+
     if not user_counts:
         return "No users mentioned in matching tweets."
 
@@ -270,8 +273,9 @@ async def similar_users(
             for (mentioned,) in neighbors:
                 neighbor_count += 1
                 for u in (mentioned or []):
-                    if u != handle:
-                        user_counts[u] = user_counts.get(u, 0) + 1
+                    user_counts[u] = user_counts.get(u, 0) + 1
+
+    user_counts = _merge_similar_handles(user_counts, primary=handle)
 
     if not user_counts:
         return f"No other users found in tweets similar to @{handle}"
