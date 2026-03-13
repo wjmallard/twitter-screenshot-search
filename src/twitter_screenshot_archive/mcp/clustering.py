@@ -252,10 +252,11 @@ def _cluster(rows: list[dict], max_topics: int = 10) -> list[dict]:
     # Append time as final dimension
     features = np.column_stack([reduced, t_scaled])
 
-    # HDBSCAN
-    min_samples = CLUSTER_MIN_SAMPLES if CLUSTER_MIN_SAMPLES is not None else CLUSTER_MIN_SIZE
+    # HDBSCAN — scale min_cluster_size with input to prevent mega-clusters
+    effective_min_size = max(CLUSTER_MIN_SIZE, int(np.sqrt(n)))
+    min_samples = CLUSTER_MIN_SAMPLES if CLUSTER_MIN_SAMPLES is not None else effective_min_size
     labels = HDBSCAN(
-        min_cluster_size=CLUSTER_MIN_SIZE,
+        min_cluster_size=effective_min_size,
         min_samples=min_samples,
         copy=True,
     ).fit_predict(features)
