@@ -1,14 +1,14 @@
 """MCP server for the Twitter screenshot archive.
 
 Subpackage layout:
-    server.py      — FastMCP instance, lifespan, entry point
-    config.py      — MCP-specific configuration
-    embedding.py   — LM Studio embedding helpers, backfill
     clustering.py  — shared clustering internals (PCA + HDBSCAN)
-    orient.py      — now tool
-    search.py      — search_tweets tool
+    config.py      — MCP-specific configuration
     drill.py       — get_tweet, browse_timeline, find_related tools
+    embedding.py   — LM Studio embedding helpers, backfill
     explore.py     — summarize_period, list_topics tools
+    orient.py      — now, archive_range, count_screenshots tools
+    search.py      — search_tweets tool
+    server.py      — FastMCP instance, lifespan, entry point
 """
 
 # Import tool modules to trigger @mcp.tool() registration
