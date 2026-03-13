@@ -5,6 +5,7 @@ import numpy as np
 from .clustering import _cluster, _fetch_relevant
 from .config import (
     SNIPPET_MAX_CHARS,
+    SUMMARIZE_SNIPPETS,
 )
 from .server import mcp
 
@@ -76,12 +77,13 @@ async def summarize_period(
         medoid_snippet = (c["medoid"]["ocr_text_clean"] or "")[:SNIPPET_MAX_CHARS]
         lines.append(f"Representative: {medoid_snippet}")
 
-        snippet_rows = _pick_snippets(c["medoid"], c["members"], max_snippets=5)
-        lines.append("")
-        for row in snippet_rows:
-            t = (row["tweet_time"] or row["created_at"]).isoformat()
-            snippet = (row["ocr_text_clean"] or "")[:SNIPPET_MAX_CHARS]
-            lines.append(f"[ID {row['id']}] {t} | {snippet}")
+        if SUMMARIZE_SNIPPETS > 0:
+            snippet_rows = _pick_snippets(c["medoid"], c["members"], max_snippets=SUMMARIZE_SNIPPETS)
+            lines.append("")
+            for row in snippet_rows:
+                t = (row["tweet_time"] or row["created_at"]).isoformat()
+                snippet = (row["ocr_text_clean"] or "")[:SNIPPET_MAX_CHARS]
+                lines.append(f"[ID {row['id']}] {t} | {snippet}")
 
         parts.append("\n".join(lines))
 
