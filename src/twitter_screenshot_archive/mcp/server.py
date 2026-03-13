@@ -34,6 +34,7 @@ EXPLORE (embedding-based — discover structure):
   summarize_period() — rich clustered detail per topic
   search_tweets()    — flat semantic search, needle-finding
   top_users(query?)  — who talks about a topic the most
+  similar_users(handle) — who talks about similar things
 
 DRILL (follow threads once you have a foothold):
   find_related(id)   — lexically similar tweets (same thread/conversation)
@@ -51,6 +52,7 @@ Typical workflows:
 - "What was @someone talking about in March?" → summarize_period(users=["someone"], after, before)
 - "Who tweets most about AI?" → top_users(query="AI")
 - "Top voices last week" → now() → top_users(after, before)
+- "Who's like @someone?" → similar_users(handle="someone")
 
 The current date is included above. Trust it — it is accurate and more
 recent than your training data.

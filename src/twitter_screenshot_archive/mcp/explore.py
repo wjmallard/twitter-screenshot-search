@@ -1,12 +1,17 @@
-"""Explore tools — summarize_period, list_topics, top_users."""
+"""Explore tools — summarize_period, list_topics, top_users, similar_users."""
+
+import json
 
 import numpy as np
 
+from ..core.db import get_conn
 from .clustering import _cluster, _fetch_relevant
 from .config import (
+    COARSE_SIMILARITY_FLOOR,
     SNIPPET_MAX_CHARS,
     SUMMARIZE_SNIPPETS,
 )
+from .embedding import vec_literal
 from .server import mcp
 
 
@@ -170,5 +175,110 @@ async def top_users(
     lines = [header]
     for i, (handle, count) in enumerate(ranked, 1):
         lines.append(f"{i}. @{handle} ({count})")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def similar_users(
+    handle: str,
+    after: str | None = None,
+    before: str | None = None,
+    limit: int = 10,
+) -> str:
+    """Find users who appear in tweets about similar topics to a given user.
+
+    Args:
+        handle: Twitter handle to find similar users for (with or without @).
+        after: Only include tweets after this date (YYYY-MM-DD).
+        before: Only include tweets before this date (YYYY-MM-DD).
+        limit: Number of similar users to return (default 10).
+    """
+    handle = handle.lstrip("@").lower()
+
+    # Fetch embeddings for all tweets mentioning this user
+    conditions = [
+        "%(handle)s = ANY(mentioned_users)",
+        "embedding IS NOT NULL",
+    ]
+    params: dict = {"handle": handle}
+
+    if after:
+        conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
+        params["after"] = after
+    if before:
+        conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+        params["before"] = before
+
+    where = " AND ".join(conditions)
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT embedding::text FROM screenshots WHERE {where}",
+            params,
+        ).fetchall()
+
+    if not rows:
+        return f"No embedded tweets found mentioning @{handle}"
+
+    # Compute mean embedding as the user's "topic centroid"
+    vecs = np.array(
+        [json.loads(r[0]) for r in rows],
+        dtype=np.float32,
+    )
+    mean_vec = vecs.mean(axis=0)
+    norm = np.linalg.norm(mean_vec)
+    if norm > 0:
+        mean_vec = mean_vec / norm
+    vec = vec_literal(mean_vec.tolist())
+
+    # Find tweets near the mean embedding
+    search_conditions = [
+        "embedding IS NOT NULL",
+        "1 - (embedding <=> %(vec)s::vector) >= %(floor)s",
+    ]
+    search_params: dict = {
+        "vec": vec,
+        "floor": COARSE_SIMILARITY_FLOOR,
+    }
+
+    if after:
+        search_conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
+        search_params["after"] = after
+    if before:
+        search_conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+        search_params["before"] = before
+
+    search_where = " AND ".join(search_conditions)
+
+    with get_conn() as conn:
+        result_rows = conn.execute(
+            f"""
+            SELECT mentioned_users
+            FROM screenshots
+            WHERE {search_where}
+            """,
+            search_params,
+        ).fetchall()
+
+    if not result_rows:
+        return f"No similar tweets found for @{handle}"
+
+    # Aggregate users, excluding the input handle
+    user_counts: dict[str, int] = {}
+    for r in result_rows:
+        for u in (r[0] or []):
+            if u != handle:
+                user_counts[u] = user_counts.get(u, 0) + 1
+
+    if not user_counts:
+        return f"No other users found in tweets similar to @{handle}"
+
+    ranked = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+
+    header = f"Users similar to @{handle} ({len(rows)} source tweets, {len(result_rows)} related)"
+    lines = [header]
+    for i, (u, count) in enumerate(ranked, 1):
+        lines.append(f"{i}. @{u} ({count})")
 
     return "\n".join(lines)
