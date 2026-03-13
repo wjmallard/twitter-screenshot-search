@@ -1,4 +1,4 @@
-"""Explore tools — summarize_period."""
+"""Explore tools — summarize_period, list_topics."""
 
 import numpy as np
 
@@ -63,9 +63,9 @@ async def summarize_period(
 
     parts = []
     for i, c in enumerate(clusters, 1):
-        ds = c["date_start"].strftime("%Y-%m-%d")
-        de = c["date_end"].strftime("%Y-%m-%d")
-        header = f"--- Topic {i} ({c['count']} tweets, {ds} — {de}) ---"
+        start_date = c["date_start"].strftime("%Y-%m-%d")
+        end_date = c["date_end"].strftime("%Y-%m-%d")
+        header = f"--- Topic {i} ({c['count']} tweets, {start_date} — {end_date}) ---"
         lines = [header]
 
         if c["top_users"]:
@@ -84,3 +84,38 @@ async def summarize_period(
         parts.append("\n".join(lines))
 
     return "\n\n".join(parts)
+
+
+@mcp.tool()
+async def list_topics(
+    after: str | None = None,
+    before: str | None = None,
+    max_topics: int = 10,
+) -> str:
+    """List the main topics in a time window, ranked by tweet count.
+    Lightweight overview — use summarize_period for detail.
+
+    Args:
+        after: Only include tweets after this date (YYYY-MM-DD).
+        before: Only include tweets before this date (YYYY-MM-DD).
+        max_topics: Maximum number of topics to return (default 10).
+    """
+    if not after and not before:
+        return "Error: provide at least one of after or before."
+
+    rows = await _fetch_relevant(after=after, before=before)
+    if not rows:
+        return "No tweets found in the specified range."
+
+    clusters = _cluster(rows, max_topics=max_topics)
+    if not clusters:
+        return "No tweet clusters formed — too few tweets."
+
+    lines = []
+    for i, c in enumerate(clusters, 1):
+        start_date = c["date_start"].strftime("%b %d")
+        end_date = c["date_end"].strftime("%b %d")
+        medoid_snippet = (c["medoid"]["ocr_text_clean"] or "")[:200]
+        lines.append(f"{i}. {medoid_snippet} ({c['count']} tweets, {start_date}–{end_date})")
+
+    return "\n".join(lines)

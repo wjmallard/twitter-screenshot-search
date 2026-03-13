@@ -8,7 +8,7 @@ Subpackage layout:
     orient.py      — now tool
     search.py      — search_tweets tool
     drill.py       — get_tweet, browse_timeline, find_related tools
-    explore.py     — summarize_period tool
+    explore.py     — summarize_period, list_topics tools
 """
 
 # Import tool modules to trigger @mcp.tool() registration
