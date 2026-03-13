@@ -1,24 +1,24 @@
-# Twitter Archive
+# Twitter Screenshot Archive
 
-A Twitter screenshot archive with full-text search and similarity browsing. OCR-indexes images into Postgres and serves them via a local search UI. Provides fuzzy matching (via trigrams), related-tweet discovery (via MinHash), and optional LLM integration (via an MCP server).
+Full-text search and topic discovery over a personal archive of Twitter screenshots. OCR-indexes images into Postgres with two optional interfaces: a Flask web UI for fuzzy search and similarity browsing, and an MCP server for LLM-driven semantic search, topic clustering, and discourse tracing.
 
 ## Overview
 
 1. **Ingest** — OCR screenshots with Tesseract, compute MinHash signatures, insert into Postgres
-2. **Search** — Flask web UI with fuzzy search, related-tweet discovery, and image lightbox
-3. **MCP Server** (optional) — Semantic search via LM Studio embeddings, exposed as an MCP tool for LLM chat models
+2. **Search** (optional) — Flask web UI with fuzzy search, related-tweet discovery, and image lightbox
+3. **MCP Server** (optional) — Semantic search, topic clustering, and discourse tracing via LM Studio embeddings, exposed as MCP tools for LLM chat models (e.g. Qwen, Claude)
 
 Dates are parsed from JSON sidecars with EXIF fallback.
 
 ## Stack
 
 - Python 3.12
-- PostgreSQL
+- PostgreSQL (pg_trgm, pgvector)
 - Tesseract
 - OpenCV
 - datasketch
-- Flask
-- MCP (optional)
+- Flask (optional — web UI)
+- scikit-learn, MCP (optional — MCP server)
 
 ## Setup
 
@@ -47,10 +47,11 @@ cp config.yaml.example config.yaml
 ### Install Dependencies
 
 ```bash
-uv sync
+uv sync                          # ingest only (core)
+uv sync --extra web              # + Flask search UI
+uv sync --extra mcp              # + MCP server
+uv sync --extra web --extra mcp  # everything
 ```
-
-For the optional MCP server, see [MCP Server](#mcp-server-optional) below.
 
 ## Usage
 
@@ -68,7 +69,7 @@ uv run ingest
 - Skips previously-ingested files to support incremental updates and graceful restart after Ctrl+C.
 - Displays a `tqdm` progress bar.
 
-### Search
+### Search (optional)
 
 ```bash
 uv run web
@@ -92,7 +93,7 @@ Runs a local webserver at `http://localhost:5000`.
 
 ### MCP Server (optional)
 
-Exposes the archive to LLM chat models (e.g. Qwen, Claude) as MCP tools for semantic search.
+Exposes the archive to LLM chat models (e.g. Qwen, Claude) as MCP tools for semantic search, topic clustering, and discourse tracing.
 
 #### Prerequisites
 
@@ -101,9 +102,7 @@ Exposes the archive to LLM chat models (e.g. Qwen, Claude) as MCP tools for sema
 
 #### Setup
 
-```bash
-uv sync --extra mcp
-```
+Install with `uv sync --extra mcp` (see [Install Dependencies](#install-dependencies)).
 
 #### Run
 
@@ -115,8 +114,33 @@ On first run, embeds all OCR text via LM Studio. Subsequent starts catch up on n
 
 #### Tools
 
-- **`search_tweets(query, limit?, after?, before?)`** — Semantic similarity search. Returns snippets ranked by relevance. Supports date filtering (`YYYY-MM-DD`).
-- **`get_tweet(id)`** — Full OCR text for a specific screenshot.
+Ten tools organized into three tiers:
+
+**Orient** — cheap, fast, no embeddings:
+- **`now()`** — Current date and time (UTC and local). Resolves relative references like "last week."
+- **`archive_range()`** — First and last dates in the archive.
+- **`count_screenshots(after?, before?)`** — Count screenshots in a time window.
+
+**Explore** — embedding-based, discover structure:
+- **`list_topics(after?, before?, max_topics?)`** — Lightweight table of contents: topic label + tweet count, ranked by size. Uses PCA dimensionality reduction and HDBSCAN clustering.
+- **`summarize_period(after?, before?, topics?, max_topics?)`** — Rich clustered detail per topic: date span, tweet count, top mentioned users, and representative snippet. Supports topic filtering — pass topic strings to focus on specific themes. At least one of date range or topics required.
+- **`search_tweets(query, limit?, after?, before?, sort?)`** — Semantic similarity search. Returns snippets ranked by relevance or chronologically. Supports date filtering.
+
+**Drill** — follow threads once you have a foothold:
+- **`find_related(id, limit?)`** — Lexically similar tweets via MinHash. Finds other parts of the same thread, conversation, or reply chain.
+- **`browse_timeline(id, before?, after?)`** — Chronologically adjacent screenshots. Not a search — shows what was nearby in time.
+- **`search_by_user(handle, limit?, after?, before?)`** — Tweets mentioning a specific @user, sorted chronologically.
+- **`get_tweet(id)`** — Full OCR text of a specific screenshot.
+
+#### Customization
+
+Copy the example prompt file to provide personal context to the LLM:
+
+```bash
+cp mcp_prompt.txt.example mcp_prompt.txt
+```
+
+Edit `mcp_prompt.txt` with your interests, terminology, and preferences. This is injected into the MCP server instructions on startup — no need to edit system prompts per session. The file is gitignored.
 
 #### MCP Client Configuration
 
@@ -130,3 +154,14 @@ On first run, embeds all OCR text via LM Studio. Subsequent starts catch up on n
   }
 }
 ```
+
+## Project Structure
+
+```
+src/twitter_screenshot_archive/
+    core/           # Shared infrastructure: db, config, cleaning, ingest, minhash
+    web/            # Flask search UI, templates, static assets
+    mcp/            # MCP server, tools, clustering pipeline
+```
+
+Both `web/` and `mcp/` import from `core/`. Neither imports from the other. Each is independently installable via optional dependencies.
