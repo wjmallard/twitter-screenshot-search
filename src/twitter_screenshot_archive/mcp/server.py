@@ -147,7 +147,12 @@ def _init_lsh():
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP):
-    _init_lsh()
+    try:
+        _init_lsh()
+    except Exception as exc:
+        print(f"Error: Could not connect to PostgreSQL: {exc}", file=sys.stderr)
+        print("Is the server running? Try: brew services start postgresql@17", file=sys.stderr)
+        sys.exit(1)
     await check_lmstudio()
     await backfill_embeddings()
     print("MCP server ready. Press Ctrl+D to exit.", file=sys.stderr)
