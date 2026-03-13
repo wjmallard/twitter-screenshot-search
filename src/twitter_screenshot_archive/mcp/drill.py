@@ -12,11 +12,7 @@ mcp = server.mcp
 
 @mcp.tool()
 async def get_tweet(id: int) -> str:
-    """Get the full OCR text of a specific tweet screenshot by ID.
-
-    Use this after search_tweets to read the complete text of
-    a result that looks interesting.
-    """
+    """Get the full OCR text of a specific tweet by ID."""
     with get_conn() as conn:
         row = conn.execute(
             """
@@ -63,8 +59,8 @@ async def browse_timeline(
     before: int = 5,
     after: int = 5,
 ) -> str:
-    """Browse screenshots chronologically around a specific tweet. Shows what
-    was captured nearby in time — not a search, just browsing context.
+    """Browse tweets chronologically around a specific tweet. Not a search —
+    just shows what was nearby in time.
 
     Args:
         id: Screenshot ID to center on.
@@ -134,9 +130,8 @@ async def browse_timeline(
 
 @mcp.tool()
 async def find_related(id: int, limit: int = 10) -> str:
-    """Find tweets with similar wording to a specific tweet. Lexical similarity
-    (shared phrases), not semantic. Use to find other parts of the same thread,
-    near-duplicates, or replies that quote the parent.
+    """Find tweets with similar wording to a specific tweet. Use to find other
+    parts of the same thread, conversation, or reply chain.
 
     Args:
         id: Screenshot ID to find related tweets for.

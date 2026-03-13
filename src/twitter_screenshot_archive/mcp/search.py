@@ -35,12 +35,8 @@ async def search_tweets(
     before: str | None = None,
     sort: str = "relevance",
 ) -> str:
-    """Search the Twitter screenshot archive by semantic similarity.
-
-    Embeds the query and finds screenshots whose OCR text is closest
-    in meaning.  Returns matching tweets with text, timestamps, and
-    metadata.  Use a small limit first and increase if needed.
-    Use get_tweet(id) to read the full text of any result.
+    """Find tweets about a topic. Semantic search — matches meaning, not exact
+    words. Use sort=chronological for a filtered timeline.
 
     Args:
         query: Search query text.
