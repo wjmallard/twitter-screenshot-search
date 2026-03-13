@@ -1,11 +1,8 @@
 """search_tweets tool."""
 
-import httpx
-
 from ..core.db import get_conn
 from .config import (
     DEFAULT_SEARCH_LIMIT,
-    LMSTUDIO_URL,
     SEARCH_SIMILARITY_FLOOR,
     SNIPPET_MAX_CHARS,
 )
@@ -51,12 +48,7 @@ async def search_tweets(
     """
     limit = max(1, min(limit, 200))
 
-    try:
-        async with httpx.AsyncClient() as client:
-            query_emb = (await embed_texts(client, [query]))[0]
-    except httpx.ConnectError:
-        return f"Error: Cannot reach LM Studio at {LMSTUDIO_URL}"
-
+    query_emb = embed_texts([query])[0]
     vec = vec_literal(query_emb)
 
     conditions = [

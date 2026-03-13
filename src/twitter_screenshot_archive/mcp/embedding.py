@@ -1,32 +1,60 @@
-"""LM Studio embedding helpers and startup backfill."""
+"""In-process MLX embedding engine and startup backfill."""
 
 import logging
 import sys
 
-import httpx
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+import mlx.core as mx
+from mlx_lm import load as mlx_load
 from tqdm import tqdm
 
 from ..core.db import get_conn
-from .config import (
-    BACKFILL_BATCH_SIZE,
-    EMBEDDING_MODEL,
-    LMSTUDIO_URL,
-)
+from .config import BACKFILL_BATCH_SIZE, EMBEDDING_MODEL_ID
 
-logging.getLogger("httpx").setLevel(logging.WARNING)
+_model = None
+_tokenizer = None
 
 
-async def embed_texts(client: httpx.AsyncClient, texts: list[str]) -> list[list[float]]:
-    """Call LM Studio's OpenAI-compatible embeddings endpoint."""
-    resp = await client.post(
-        f"{LMSTUDIO_URL}/v1/embeddings",
-        json={"model": EMBEDDING_MODEL, "input": texts},
-        timeout=120.0,
+def load_model():
+    """Load the embedding model and tokenizer into module state."""
+    global _model, _tokenizer
+    print(f"Loading embedding model {EMBEDDING_MODEL_ID}...", file=sys.stderr)
+    _model, _tokenizer = mlx_load(EMBEDDING_MODEL_ID)
+    mx.eval(_model.parameters())
+    print("Embedding model ready.", file=sys.stderr)
+
+
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed a batch of texts using the loaded MLX model.
+
+    Returns a list of float lists (one embedding per input text).
+    Uses last-token pooling with L2 normalization (Qwen3-Embedding convention).
+    """
+    tokens = _tokenizer._tokenizer(
+        texts,
+        return_tensors="np",
+        padding=True,
+        truncation=True,
+        max_length=512,
     )
-    resp.raise_for_status()
-    data = resp.json()["data"]
-    data.sort(key=lambda x: x["index"])
-    return [d["embedding"] for d in data]
+    input_ids = mx.array(tokens["input_ids"])
+    attention_mask = mx.array(tokens["attention_mask"])
+
+    # Forward pass through transformer body (skip LM head)
+    hidden = _model.model(input_ids)
+
+    # Last-token pooling: extract hidden state at last non-pad position
+    seq_lengths = attention_mask.sum(axis=1) - 1
+    batch_idx = mx.arange(hidden.shape[0])
+    embeds = hidden[batch_idx, seq_lengths]
+
+    # L2 normalize
+    norms = mx.linalg.norm(embeds, axis=1, keepdims=True)
+    embeds = embeds / mx.where(norms == 0, 1, norms)
+
+    mx.eval(embeds)
+    return embeds.tolist()
 
 
 def vec_literal(embedding: list[float]) -> str:
@@ -34,32 +62,8 @@ def vec_literal(embedding: list[float]) -> str:
     return "[" + ",".join(str(v) for v in embedding) + "]"
 
 
-async def check_lmstudio():
-    """Verify LM Studio is reachable and the embedding model is loaded."""
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{LMSTUDIO_URL}/v1/models", timeout=5.0)
-            resp.raise_for_status()
-    except (httpx.ConnectError, httpx.ConnectTimeout):
-        print(
-            f"Error: Cannot reach LM Studio at {LMSTUDIO_URL}\n"
-            "Make sure LM Studio is running with the embedding model loaded.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    models = [m["id"] for m in resp.json().get("data", [])]
-    if EMBEDDING_MODEL not in models:
-        print(
-            f"Error: Model '{EMBEDDING_MODEL}' not loaded in LM Studio.\n"
-            f"Available models: {', '.join(models) or '(none)'}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
-async def backfill_embeddings():
-    """Embed all rows that have ocr_text but no embedding yet."""
+def backfill_embeddings():
+    """Embed all rows that have ocr_text_clean but no embedding yet."""
     with get_conn() as conn:
         pending = conn.execute(
             "SELECT count(*) FROM screenshots "
@@ -71,43 +75,34 @@ async def backfill_embeddings():
 
         progress = tqdm(total=pending, desc="Embedding backfill", file=sys.stderr)
 
-        async with httpx.AsyncClient() as client:
-            while True:
-                rows = conn.execute(
-                    "SELECT id, ocr_text_clean FROM screenshots "
-                    "WHERE ocr_text_clean IS NOT NULL AND ocr_text_clean != '' AND embedding IS NULL "
-                    "ORDER BY id LIMIT %(limit)s",
+        while True:
+            rows = conn.execute(
+                "SELECT id, ocr_text_clean FROM screenshots "
+                "WHERE ocr_text_clean IS NOT NULL AND ocr_text_clean != '' AND embedding IS NULL "
+                "ORDER BY id LIMIT %(limit)s",
+                {
+                    "limit": BACKFILL_BATCH_SIZE,
+                },
+            ).fetchall()
+
+            if not rows:
+                break
+
+            # Sort by text length to minimize padding waste within the batch
+            pairs = sorted(rows, key=lambda r: len(r[1]))
+            ids = [r[0] for r in pairs]
+            texts = [r[1] for r in pairs]
+            embeddings = embed_texts(texts)
+
+            for row_id, emb in zip(ids, embeddings):
+                conn.execute(
+                    "UPDATE screenshots SET embedding = %(vec)s::vector WHERE id = %(id)s",
                     {
-                        "limit": BACKFILL_BATCH_SIZE,
+                        "vec": vec_literal(emb),
+                        "id": row_id,
                     },
-                ).fetchall()
-
-                if not rows:
-                    break
-
-                ids = [r[0] for r in rows]
-                texts = [r[1] for r in rows]
-
-                try:
-                    embeddings = await embed_texts(client, texts)
-                except httpx.ConnectError:
-                    progress.close()
-                    print(
-                        f"Cannot reach LM Studio at {LMSTUDIO_URL} — "
-                        "backfill aborted, will retry next startup.",
-                        file=sys.stderr,
-                    )
-                    return
-
-                for row_id, emb in zip(ids, embeddings):
-                    conn.execute(
-                        "UPDATE screenshots SET embedding = %(vec)s::vector WHERE id = %(id)s",
-                        {
-                            "vec": vec_literal(emb),
-                            "id": row_id,
-                        },
-                    )
-                conn.commit()
-                progress.update(len(ids))
+                )
+            conn.commit()
+            progress.update(len(ids))
 
         progress.close()

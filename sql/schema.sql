@@ -22,7 +22,7 @@ CREATE TABLE screenshots (
     mentioned_users TEXT[],
     tweet_time TIMESTAMPTZ,
     tweet_time_source TEXT,
-    embedding vector(768)
+    embedding vector(1024)
 );
 
 CREATE INDEX idx_screenshots_tsv ON screenshots USING GIN (ocr_text_tsv);

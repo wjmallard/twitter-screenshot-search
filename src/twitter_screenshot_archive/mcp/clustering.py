@@ -2,7 +2,6 @@
 
 import json
 
-import httpx
 import numpy as np
 
 from ..core.db import get_conn
@@ -70,8 +69,7 @@ async def _fetch_relevant(
         date_params["users"] = normalized
 
     if topics:
-        async with httpx.AsyncClient() as client:
-            topic_embeddings = await embed_texts(client, topics)
+        topic_embeddings = embed_texts(topics)
 
         # Build UNION ALL across topic vectors — each branch gets its own
         # HNSW index scan for coarse pre-filtering
