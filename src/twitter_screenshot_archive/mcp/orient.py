@@ -26,8 +26,8 @@ async def archive_range() -> str:
         row = conn.execute(
             """
             SELECT
-                MIN(COALESCE(tweet_time, created_at)),
-                MAX(COALESCE(tweet_time, created_at))
+                MIN(created_at),
+                MAX(created_at)
             FROM screenshots
             """
         ).fetchone()
@@ -57,10 +57,10 @@ async def count_screenshots(
     params: dict = {}
 
     if after:
-        conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
+        conditions.append("created_at >= %(after)s::date")
         params["after"] = after
     if before:
-        conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+        conditions.append("created_at < %(before)s::date")
         params["before"] = before
 
     where = "WHERE " + " AND ".join(conditions) if conditions else ""
