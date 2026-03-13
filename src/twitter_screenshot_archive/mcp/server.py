@@ -168,4 +168,13 @@ mcp = FastMCP(
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    mcp.run(transport="stdio")
+    try:
+        mcp.run(transport="stdio")
+    except BaseExceptionGroup as eg:
+        # sys.exit() inside the async lifespan gets wrapped in an
+        # ExceptionGroup by anyio.  The friendly message was already
+        # printed to stderr, so just propagate the exit code.
+        for exc in eg.exceptions:
+            if isinstance(exc, SystemExit):
+                sys.exit(exc.code)
+        raise
