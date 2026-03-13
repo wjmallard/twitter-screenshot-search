@@ -1,4 +1,4 @@
-"""Explore tools — summarize_period, list_topics."""
+"""Explore tools — summarize_period, list_topics, top_users."""
 
 import numpy as np
 
@@ -127,5 +127,48 @@ async def list_topics(
         end_date = c["end_date"].strftime("%b %d")
         medoid_snippet = (c["medoid"]["ocr_text_clean"] or "")[:200]
         lines.append(f"{i}. {medoid_snippet} ({c['count']} tweets, {start_date}–{end_date})")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def top_users(
+    query: str | None = None,
+    after: str | None = None,
+    before: str | None = None,
+    limit: int = 10,
+) -> str:
+    """Find which users appear most in tweets about a topic.
+
+    Args:
+        query: Topic to search for (e.g. "AI regulation"). If omitted, counts
+               across all tweets in the date range.
+        after: Only include tweets after this date (YYYY-MM-DD).
+        before: Only include tweets before this date (YYYY-MM-DD).
+        limit: Number of top users to return (default 10).
+    """
+    topics = [query] if query else None
+    if not after and not before and not topics:
+        return "Error: provide at least a query or a date range."
+
+    rows = await _fetch_relevant(after=after, before=before, topics=topics)
+    if not rows:
+        return "No tweets found."
+
+    user_counts: dict[str, int] = {}
+    for r in rows:
+        for u in (r["mentioned_users"] or []):
+            user_counts[u] = user_counts.get(u, 0) + 1
+
+    if not user_counts:
+        return "No users mentioned in matching tweets."
+
+    ranked = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+
+    label = f'about "{query}"' if query else "in range"
+    header = f"Top users {label} ({len(rows)} tweets)"
+    lines = [header]
+    for i, (handle, count) in enumerate(ranked, 1):
+        lines.append(f"{i}. @{handle} ({count})")
 
     return "\n".join(lines)
