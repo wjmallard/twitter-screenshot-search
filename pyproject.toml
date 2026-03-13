@@ -21,8 +21,8 @@ mcp = ["mcp>=1.26", "scikit-learn>=1.3", "numpy"]
 
 [project.scripts]
 ingest = "twitter_screenshot_archive.ingest:main"
-search = "twitter_screenshot_archive.app:main"
-mcp-search = "twitter_screenshot_archive.mcp:main"
+web = "twitter_screenshot_archive.app:main"
+mcp = "twitter_screenshot_archive.mcp:main"
 
 [build-system]
 requires = ["hatchling"]

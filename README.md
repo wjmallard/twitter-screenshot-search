@@ -71,7 +71,7 @@ uv run ingest
 ### Search
 
 ```bash
-uv run search
+uv run web
 ```
 
 Runs a local webserver at `http://localhost:5000`.
@@ -108,7 +108,7 @@ uv sync --extra mcp
 #### Run
 
 ```bash
-uv run mcp-search
+uv run mcp
 ```
 
 On first run, embeds all OCR text via LM Studio. Subsequent starts catch up on new entries only.
@@ -125,7 +125,7 @@ On first run, embeds all OCR text via LM Studio. Subsequent starts catch up on n
   "mcpServers": {
     "twitter-archive": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/twitter-screenshot-archive", "mcp-search"]
+      "args": ["run", "--directory", "/path/to/twitter-screenshot-archive", "mcp"]
     }
   }
 }
