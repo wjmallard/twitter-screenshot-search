@@ -1,0 +1,8 @@
+# Personal context for the MCP server. Copy to mcp_prompt.txt and edit.
+# This is sent to the LLM at the start of every session, so it learns
+# your shorthand, interests, and timezone without repeating yourself.
+#
+# Examples of what to put here:
+#   - Topics you care about ("I follow AI policy and climate discourse")
+#   - Shorthand you use ("when I say 'the discourse' I mean ...")
+#   - Names or handles you refer to obliquely ("'the NYT guy' is @...")

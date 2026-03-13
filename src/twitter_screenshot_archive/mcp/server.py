@@ -5,6 +5,7 @@ import signal
 import sys
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -15,6 +16,58 @@ from .embedding import backfill_embeddings, check_lmstudio
 
 _CACHE_DIR = Path.home() / ".cache" / "twitter-screenshot-archive"
 _CACHE_FILE = _CACHE_DIR / "lsh_index.pkl"
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_PROMPT_FILE = _PROJECT_ROOT / "mcp_prompt.txt"
+
+_WORKFLOW_GUIDANCE = """\
+You have access to a Twitter screenshot archive — an OCR-indexed personal
+collection of Twitter/X screenshots. The tools are organized in three tiers:
+
+ORIENT (cheap, fast — use these first):
+  now()              — current date/time, for resolving "last week" etc.
+  archive_range()    — first and last dates in the archive
+  count_screenshots() — how many screenshots in a date window
+
+EXPLORE (embedding-based — discover structure):
+  list_topics()      — lightweight table of contents: topic + count
+  summarize_period() — rich clustered detail per topic
+  search_tweets()    — flat semantic search, needle-finding
+
+DRILL (follow threads once you have a foothold):
+  find_related(id)   — lexically similar tweets (same thread/conversation)
+  browse_timeline(id) — chronologically adjacent screenshots
+  get_tweet(id)      — full OCR text of one screenshot
+
+Typical workflows:
+- "What happened last week?" → now() → summarize_period(after, before)
+- "Find tweets about X" → search_tweets(query) → get_tweet(id) for detail
+- "Trace a thread" → search_tweets → find_related(id) to pull the thread
+- "What was I looking at around this tweet?" → browse_timeline(id)
+- "Overview then drill" → list_topics(after, before) → summarize_period(topics=["..."])
+
+Multiple tool calls per response are expected and encouraged. Start broad,
+then narrow. Use orient tools to plan before committing to expensive searches."""
+
+
+def _build_instructions() -> str:
+    """Assemble MCP instructions: workflow guidance + startup timestamp + user context."""
+    utc = datetime.now(timezone.utc)
+    local = datetime.now().astimezone()
+    tz_name = local.tzinfo.tzname(local)
+
+    parts = [
+        _WORKFLOW_GUIDANCE,
+        f"\nServer started at: {utc.strftime('%Y-%m-%d %H:%M UTC')} / "
+        f"{local.strftime('%Y-%m-%d %H:%M')} {tz_name}",
+    ]
+
+    if _PROMPT_FILE.exists():
+        user_context = _PROMPT_FILE.read_text().strip()
+        if user_context:
+            parts.append(f"\n{user_context}")
+
+    return "\n".join(parts)
 
 _lsh = None
 _minhashes = {}
@@ -68,7 +121,11 @@ async def _lifespan(server: FastMCP):
     yield {}
 
 
-mcp = FastMCP("twitter-archive", lifespan=_lifespan)
+mcp = FastMCP(
+    "twitter-archive",
+    instructions=_build_instructions(),
+    lifespan=_lifespan,
+)
 
 
 def main():
