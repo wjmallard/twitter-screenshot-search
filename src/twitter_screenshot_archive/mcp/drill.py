@@ -183,6 +183,7 @@ async def search_by_user(
     limit: int = 20,
     after: str | None = None,
     before: str | None = None,
+    sort: str = "newest",
 ) -> str:
     """Find tweets mentioning a specific user. Use to follow what @someone was
     saying or being discussed.
@@ -192,6 +193,7 @@ async def search_by_user(
         limit: Max results to return (default 20).
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
+        sort: "newest" (default) or "oldest".
     """
     handle = handle.lstrip("@").lower()
     limit = max(1, min(limit, 200))
@@ -211,6 +213,13 @@ async def search_by_user(
 
     where = " AND ".join(conditions)
 
+    if sort == "oldest":
+        order_by = "COALESCE(tweet_time, created_at) ASC"
+        sort_label = "oldest first"
+    else:
+        order_by = "COALESCE(tweet_time, created_at) DESC"
+        sort_label = "newest first"
+
     with get_conn() as conn:
         total = conn.execute(
             f"SELECT COUNT(*) FROM screenshots WHERE {where}",
@@ -222,7 +231,7 @@ async def search_by_user(
             SELECT id, ocr_text_clean, tweet_time, mentioned_users
             FROM screenshots
             WHERE {where}
-            ORDER BY COALESCE(tweet_time, created_at) DESC
+            ORDER BY {order_by}
             LIMIT %(limit)s
             """,
             params,
@@ -232,9 +241,9 @@ async def search_by_user(
         return f"No tweets found mentioning @{handle}"
 
     if len(rows) < total:
-        header = f"Showing {len(rows)} of {total} tweets mentioning @{handle} (newest first)"
+        header = f"Showing {len(rows)} of {total} tweets mentioning @{handle} ({sort_label})"
     else:
-        header = f"Found {total} tweets mentioning @{handle} (newest first)"
+        header = f"Found {total} tweets mentioning @{handle} ({sort_label})"
     lines = [header + "\n"]
     for row in rows:
         lines.append(_format_row(row))
