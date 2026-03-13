@@ -253,7 +253,7 @@ def _cluster(rows: list[dict], max_topics: int = 10) -> list[dict]:
     features = np.column_stack([reduced, t_scaled])
 
     # HDBSCAN — scale min_cluster_size with input to prevent mega-clusters
-    effective_min_size = max(CLUSTER_MIN_SIZE, int(np.sqrt(n)))
+    effective_min_size = max(CLUSTER_MIN_SIZE, int(round(n ** (1/3))))
     min_samples = CLUSTER_MIN_SAMPLES if CLUSTER_MIN_SAMPLES is not None else effective_min_size
     labels = HDBSCAN(
         min_cluster_size=effective_min_size,
