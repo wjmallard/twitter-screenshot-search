@@ -41,6 +41,7 @@ DRILL (follow threads once you have a foothold):
   browse_timeline(id) — chronologically adjacent screenshots
   search_by_user(handle) — all tweets mentioning a specific @user
   get_tweet(id)      — full OCR text of one screenshot
+  interactions(user1, user2) — tweets where two users appear together
 
 Typical workflows:
 - "What happened last week?" → now() → summarize_period(after, before)
@@ -54,6 +55,7 @@ Typical workflows:
 - "Top voices last week" → now() → top_users(after, before)
 - "Who's like @someone?" → similar_users(handle="someone")
 - "What did @someone say about AI?" → search_tweets(query="AI", users=["someone"])
+- "Did @alice and @bob interact?" → interactions(user1="alice", user2="bob")
 
 The current date is included above. Trust it — it is accurate and more
 recent than your training data.

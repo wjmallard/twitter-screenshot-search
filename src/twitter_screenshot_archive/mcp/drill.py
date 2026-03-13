@@ -1,4 +1,4 @@
-"""Drill tools — get_tweet, browse_timeline, find_related, search_by_user."""
+"""Drill tools — get_tweet, browse_timeline, find_related, search_by_user, interactions."""
 
 from ..core.db import get_conn
 from ..core.minhash import query_related
@@ -235,6 +235,75 @@ async def search_by_user(
         header = f"Showing {len(rows)} of {total} tweets mentioning @{handle} (newest first)"
     else:
         header = f"Found {total} tweets mentioning @{handle} (newest first)"
+    lines = [header + "\n"]
+    for row in rows:
+        lines.append(_format_row(row))
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def interactions(
+    user1: str,
+    user2: str,
+    limit: int = 20,
+    after: str | None = None,
+    before: str | None = None,
+) -> str:
+    """Find tweets where two users appear together — conversations, quote
+    tweets, and reply chains.
+
+    Args:
+        user1: First Twitter handle (with or without @).
+        user2: Second Twitter handle (with or without @).
+        limit: Max results to return (default 20).
+        after: Only include tweets after this date (YYYY-MM-DD).
+        before: Only include tweets before this date (YYYY-MM-DD).
+    """
+    user1 = user1.lstrip("@").lower()
+    user2 = user2.lstrip("@").lower()
+    limit = max(1, min(limit, 200))
+
+    conditions = ["mentioned_users @> ARRAY[%(u1)s, %(u2)s]"]
+    params: dict = {
+        "u1": user1,
+        "u2": user2,
+        "limit": limit,
+    }
+
+    if after:
+        conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
+        params["after"] = after
+    if before:
+        conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+        params["before"] = before
+
+    where = " AND ".join(conditions)
+
+    with get_conn() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM screenshots WHERE {where}",
+            params,
+        ).fetchone()[0]
+
+        rows = conn.execute(
+            f"""
+            SELECT id, ocr_text_clean, tweet_time, mentioned_users
+            FROM screenshots
+            WHERE {where}
+            ORDER BY COALESCE(tweet_time, created_at) DESC
+            LIMIT %(limit)s
+            """,
+            params,
+        ).fetchall()
+
+    if not rows:
+        return f"No tweets found with both @{user1} and @{user2}"
+
+    if len(rows) < total:
+        header = f"Showing {len(rows)} of {total} tweets with @{user1} + @{user2} (newest first)"
+    else:
+        header = f"Found {total} tweets with @{user1} + @{user2} (newest first)"
     lines = [header + "\n"]
     for row in rows:
         lines.append(_format_row(row))
