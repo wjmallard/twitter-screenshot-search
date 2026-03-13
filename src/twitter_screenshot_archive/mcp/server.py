@@ -47,6 +47,7 @@ Typical workflows:
 - "What was I looking at around this tweet?" → browse_timeline(id)
 - "Overview then drill" → list_topics(after, before) → summarize_period(topics=["..."])
 - "What was @someone saying?" → search_by_user(handle) → get_tweet(id) for detail
+- "What was @someone talking about in March?" → summarize_period(users=["someone"], after, before)
 
 The current date is included above. Trust it — it is accurate and more
 recent than your training data.

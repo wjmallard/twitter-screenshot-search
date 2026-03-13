@@ -40,23 +40,26 @@ async def summarize_period(
     after: str | None = None,
     before: str | None = None,
     topics: list[str] | None = None,
+    users: list[str] | None = None,
     max_topics: int = 10,
 ) -> str:
     """Cluster and summarize what happened in a time window or around
-    specific topics. Returns rich detail per topic: date span, top users,
-    representative snippets. Use for overviews, discourse tracing, and
-    narrative reconstruction.
+    specific topics or users. Returns rich detail per topic: date span,
+    top users, representative snippets. Use for overviews, discourse
+    tracing, and narrative reconstruction.
 
     Args:
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         topics: Optional topic strings to filter by (e.g. ["AI", "China trade"]).
+        users: Optional list of handles to filter by (e.g. ["someone"]).
+               Union semantics — includes any tweet mentioning any listed user.
         max_topics: Maximum number of topic clusters to return (default 10).
     """
-    if not after and not before and not topics:
-        return "Error: provide at least one of after/before date range or topics."
+    if not after and not before and not topics and not users:
+        return "Error: provide at least one of after/before date range, topics, or users."
 
-    rows = await _fetch_relevant(after=after, before=before, topics=topics)
+    rows = await _fetch_relevant(after=after, before=before, topics=topics, users=users)
     if not rows:
         return "No tweets found in the specified range."
 
@@ -94,6 +97,7 @@ async def summarize_period(
 async def list_topics(
     after: str | None = None,
     before: str | None = None,
+    users: list[str] | None = None,
     max_topics: int = 10,
 ) -> str:
     """List the main topics in a time window, ranked by tweet count.
@@ -102,12 +106,14 @@ async def list_topics(
     Args:
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
+        users: Optional list of handles to filter by (e.g. ["someone"]).
+               Union semantics — includes any tweet mentioning any listed user.
         max_topics: Maximum number of topics to return (default 10).
     """
-    if not after and not before:
-        return "Error: provide at least one of after or before."
+    if not after and not before and not users:
+        return "Error: provide at least one of after/before date range or users."
 
-    rows = await _fetch_relevant(after=after, before=before)
+    rows = await _fetch_relevant(after=after, before=before, users=users)
     if not rows:
         return "No tweets found in the specified range."
 

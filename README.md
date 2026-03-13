@@ -122,8 +122,8 @@ Ten tools organized into three tiers:
 - **`count_screenshots(after?, before?)`** — Count screenshots in a time window.
 
 **Explore** — embedding-based, discover structure:
-- **`list_topics(after?, before?, max_topics?)`** — Lightweight table of contents: topic label + tweet count, ranked by size. Uses PCA dimensionality reduction and HDBSCAN clustering.
-- **`summarize_period(after?, before?, topics?, max_topics?)`** — Rich clustered detail per topic: date span, tweet count, top mentioned users, and representative snippet. Supports topic filtering — pass topic strings to focus on specific themes. At least one of date range or topics required.
+- **`list_topics(after?, before?, users?, max_topics?)`** — Lightweight table of contents: topic label + tweet count, ranked by size. Uses PCA dimensionality reduction and HDBSCAN clustering. Supports user filtering.
+- **`summarize_period(after?, before?, topics?, users?, max_topics?)`** — Rich clustered detail per topic: date span, tweet count, top mentioned users, and representative snippet. Supports topic and user filtering — e.g. "What was @someone talking about in March?" At least one of date range, topics, or users required.
 - **`search_tweets(query, limit?, after?, before?, sort?)`** — Semantic similarity search. Returns snippets ranked by relevance or chronologically. Supports date filtering.
 
 **Drill** — follow threads once you have a foothold:

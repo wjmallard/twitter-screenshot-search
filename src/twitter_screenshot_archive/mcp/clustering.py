@@ -41,10 +41,12 @@ async def _fetch_relevant(
     after: str | None = None,
     before: str | None = None,
     topics: list[str] | None = None,
+    users: list[str] | None = None,
 ) -> list[dict]:
-    """Fetch rows with parsed embeddings, optional date/topic filtering.
+    """Fetch rows with parsed embeddings, optional date/topic/user filtering.
 
-    At least one of date range or topics must be provided (enforced by caller).
+    At least one of date range, topics, or users must be provided (enforced by
+    caller).
 
     When topics are provided, a two-pass filter runs:
     1. SQL coarse pre-filter via HNSW index (cosine sim >= SEARCH_SIMILARITY_FLOOR)
@@ -61,6 +63,10 @@ async def _fetch_relevant(
     if before:
         date_conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
         date_params["before"] = before
+    if users:
+        normalized = [u.lstrip("@").lower() for u in users]
+        date_conditions.append("mentioned_users && %(users)s::text[]")
+        date_params["users"] = normalized
 
     if topics:
         async with httpx.AsyncClient() as client:
