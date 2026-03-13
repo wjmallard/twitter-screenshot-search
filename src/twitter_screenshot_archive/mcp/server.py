@@ -38,7 +38,7 @@ EXPLORE (embedding-based — discover structure):
 
 DRILL (follow threads once you have a foothold):
   find_related(id)   — lexically similar tweets (same thread/conversation)
-  browse_timeline(id) — chronologically adjacent screenshots
+  nearby_screenshots(id) — screenshots captured around the same time
   search_by_user(handle) — all tweets mentioning a specific @user
   get_tweet(id)      — full OCR text of one screenshot
   interactions(user1, user2) — tweets where two users appear together
@@ -53,7 +53,7 @@ Overview:
 Finding specific content:
 - "Find tweets about X" → search_tweets(query) → get_tweet(id) for detail
 - "Trace a thread" → search_tweets → find_related(id) to pull the thread
-- "What was I looking at around this tweet?" → browse_timeline(id)
+- "What was I looking at around this tweet?" → nearby_screenshots(id)
 - "When was X being discussed?" → summarize_period(topics=["X"]) (no date range — finds all episodes)
 
 User-focused queries:

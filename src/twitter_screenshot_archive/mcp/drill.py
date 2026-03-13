@@ -1,4 +1,4 @@
-"""Drill tools — get_tweet, browse_timeline, find_related, search_by_user, interactions."""
+"""Drill tools — get_tweet, nearby_screenshots, find_related, search_by_user, interactions."""
 
 from ..core.db import get_conn
 from ..core.minhash import query_related
@@ -54,13 +54,13 @@ def _format_row(row) -> str:
 
 
 @mcp.tool()
-async def browse_timeline(
+async def nearby_screenshots(
     id: int,
     before: int = 5,
     after: int = 5,
 ) -> str:
-    """Browse tweets chronologically around a specific tweet. Not a search —
-    just shows what was nearby in time.
+    """Show screenshots captured around the same time as a given tweet. Not a
+    search — just chronological neighbors. Requires a known ID from another tool.
 
     Args:
         id: Screenshot ID to center on.

@@ -3,7 +3,7 @@
 Subpackage layout:
     clustering.py  — shared clustering internals (PCA + HDBSCAN)
     config.py      — MCP-specific configuration
-    drill.py       — get_tweet, browse_timeline, find_related, search_by_user, interactions tools
+    drill.py       — get_tweet, nearby_screenshots, find_related, search_by_user, interactions tools
     embedding.py   — LM Studio embedding helpers, backfill
     explore.py     — summarize_period, list_topics, top_users, similar_users tools
     orient.py      — now, archive_range, count_screenshots tools

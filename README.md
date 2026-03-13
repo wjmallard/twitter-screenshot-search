@@ -131,7 +131,7 @@ Thirteen tools organized into three tiers:
 **Drill** — follow threads once you have a foothold:
 - **`get_tweet(id)`** — Full OCR text of a specific screenshot.
 - **`find_related(id, limit?)`** — Lexically similar tweets via MinHash. Finds other parts of the same thread, conversation, or reply chain.
-- **`browse_timeline(id, before?, after?)`** — Chronologically adjacent screenshots. Not a search — shows what was nearby in time.
+- **`nearby_screenshots(id, before?, after?)`** — Screenshots captured around the same time as a given tweet. Not a search — just chronological neighbors. Requires a known ID from another tool.
 - **`search_by_user(handle, limit?, after?, before?)`** — Tweets mentioning a specific @user, sorted chronologically.
 - **`interactions(user1, user2, limit?, after?, before?)`** — Tweets where two users appear together — conversations, quote tweets, and reply chains.
 
