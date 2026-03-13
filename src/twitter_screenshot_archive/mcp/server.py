@@ -10,8 +10,8 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from ..db import get_conn, load_all_signatures, signature_fingerprint
-from ..minhash import build_lsh_index
+from ..core.db import get_conn, load_all_signatures, signature_fingerprint
+from ..core.minhash import build_lsh_index
 from .embedding import backfill_embeddings, check_lmstudio
 
 _CACHE_DIR = Path.home() / ".cache" / "twitter-screenshot-archive"

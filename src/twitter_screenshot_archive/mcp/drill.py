@@ -1,7 +1,7 @@
 """Drill tools — get_tweet, browse_timeline, find_related, search_by_user."""
 
-from ..db import get_conn
-from ..minhash import query_related
+from ..core.db import get_conn
+from ..core.minhash import query_related
 from . import server
 from .config import (
     SNIPPET_MAX_CHARS,

@@ -2,7 +2,7 @@
 
 import httpx
 
-from ..db import get_conn
+from ..core.db import get_conn
 from .config import (
     DEFAULT_SEARCH_LIMIT,
     LMSTUDIO_URL,

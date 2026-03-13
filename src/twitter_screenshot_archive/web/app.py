@@ -8,14 +8,14 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, render_template, request, send_file
 
-from . import config
-from .db import (
+from ..core import config
+from ..core.db import (
     get_conn, search_fulltext, search_trigram, search_exact,
     count_fulltext, count_trigram, count_exact, count_screenshots,
     load_all_signatures, get_screenshots_by_ids, get_timeline_neighbors,
     signature_fingerprint,
 )
-from .minhash import build_lsh_index, query_related
+from ..core.minhash import build_lsh_index, query_related
 
 app = Flask(__name__)
 

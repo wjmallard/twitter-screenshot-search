@@ -5,8 +5,8 @@ import json
 import httpx
 import numpy as np
 
-from ..db import get_conn
-from ..minhash import signature_to_minhash
+from ..core.db import get_conn
+from ..core.minhash import signature_to_minhash
 from sklearn.cluster import HDBSCAN
 from sklearn.decomposition import PCA
 

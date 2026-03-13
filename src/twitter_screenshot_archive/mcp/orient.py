@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from ..db import get_conn
+from ..core.db import get_conn
 from .server import mcp
 
 

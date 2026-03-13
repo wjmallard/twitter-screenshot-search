@@ -6,7 +6,7 @@ import sys
 import httpx
 from tqdm import tqdm
 
-from ..db import get_conn
+from ..core.db import get_conn
 from .config import (
     BACKFILL_BATCH_SIZE,
     EMBEDDING_MODEL,
