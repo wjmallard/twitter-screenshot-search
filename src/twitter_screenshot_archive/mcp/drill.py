@@ -1,4 +1,4 @@
-"""Drill tools — get_tweet, browse_timeline, find_related."""
+"""Drill tools — get_tweet, browse_timeline, find_related, search_by_user."""
 
 from ..db import get_conn
 from ..minhash import query_related
@@ -173,5 +173,61 @@ async def find_related(id: int, limit: int = 10) -> str:
         snippet = (row[1] or "(no text)")[:SNIPPET_MAX_CHARS]
         parts.append(snippet)
         lines.append(" | ".join(parts))
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def search_by_user(
+    handle: str,
+    limit: int = 20,
+    after: str | None = None,
+    before: str | None = None,
+) -> str:
+    """Find tweets mentioning a specific user. Use to follow what @someone was
+    saying or being discussed.
+
+    Args:
+        handle: Twitter handle to search for (with or without @).
+        limit: Max results to return (default 20).
+        after: Only include tweets after this date (YYYY-MM-DD).
+        before: Only include tweets before this date (YYYY-MM-DD).
+    """
+    handle = handle.lstrip("@").lower()
+    limit = max(1, min(limit, 200))
+
+    conditions = ["%(handle)s = ANY(mentioned_users)"]
+    params: dict = {
+        "handle": handle,
+        "limit": limit,
+    }
+
+    if after:
+        conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
+        params["after"] = after
+    if before:
+        conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+        params["before"] = before
+
+    where = " AND ".join(conditions)
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, ocr_text_clean, tweet_time, mentioned_users
+            FROM screenshots
+            WHERE {where}
+            ORDER BY COALESCE(tweet_time, created_at)
+            LIMIT %(limit)s
+            """,
+            params,
+        ).fetchall()
+
+    if not rows:
+        return f"No tweets found mentioning @{handle}"
+
+    lines = [f"Found {len(rows)} tweets mentioning @{handle}\n"]
+    for row in rows:
+        lines.append(_format_row(row))
 
     return "\n".join(lines)

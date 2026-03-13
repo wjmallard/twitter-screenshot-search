@@ -37,6 +37,7 @@ EXPLORE (embedding-based — discover structure):
 DRILL (follow threads once you have a foothold):
   find_related(id)   — lexically similar tweets (same thread/conversation)
   browse_timeline(id) — chronologically adjacent screenshots
+  search_by_user(handle) — all tweets mentioning a specific @user
   get_tweet(id)      — full OCR text of one screenshot
 
 Typical workflows:
@@ -45,6 +46,7 @@ Typical workflows:
 - "Trace a thread" → search_tweets → find_related(id) to pull the thread
 - "What was I looking at around this tweet?" → browse_timeline(id)
 - "Overview then drill" → list_topics(after, before) → summarize_period(topics=["..."])
+- "What was @someone saying?" → search_by_user(handle) → get_tweet(id) for detail
 
 Multiple tool calls per response are expected and encouraged. Start broad,
 then narrow. Use orient tools to plan before committing to expensive searches."""
