@@ -7,7 +7,6 @@ import numpy as np
 from ..core.db import get_conn
 from .clustering import _cluster, _fetch_relevant
 from .config import (
-    COARSE_SIMILARITY_FLOOR,
     SNIPPET_MAX_CHARS,
     SUMMARIZE_SNIPPETS,
 )
@@ -179,104 +178,107 @@ async def top_users(
     return "\n".join(lines)
 
 
+_SIMILAR_USERS_K = 5
+
+
 @mcp.tool()
 async def similar_users(
     handle: str,
     after: str | None = None,
     before: str | None = None,
     limit: int = 10,
+    k: int = _SIMILAR_USERS_K,
 ) -> str:
     """Find users who appear in tweets about similar topics to a given user.
+
+    For each tweet mentioning the target handle, finds the K nearest tweets
+    (by embedding) that don't mention that handle, then aggregates users
+    from those neighbors. Handles bimodal users naturally — each tweet
+    finds its own neighbors independently.
 
     Args:
         handle: Twitter handle to find similar users for (with or without @).
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         limit: Number of similar users to return (default 10).
+        k: Neighbors per source tweet (default 5).
     """
     handle = handle.lstrip("@").lower()
 
     # Fetch embeddings for all tweets mentioning this user
-    conditions = [
+    source_conditions = [
         "%(handle)s = ANY(mentioned_users)",
         "embedding IS NOT NULL",
     ]
     params: dict = {"handle": handle}
 
     if after:
-        conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
+        source_conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
         params["after"] = after
     if before:
-        conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+        source_conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
         params["before"] = before
 
-    where = " AND ".join(conditions)
+    source_where = " AND ".join(source_conditions)
 
     with get_conn() as conn:
-        rows = conn.execute(
-            f"SELECT embedding::text FROM screenshots WHERE {where}",
+        source_rows = conn.execute(
+            f"SELECT id, embedding::text FROM screenshots WHERE {source_where}",
             params,
         ).fetchall()
 
-    if not rows:
+    if not source_rows:
         return f"No embedded tweets found mentioning @{handle}"
 
-    # Compute mean embedding as the user's "topic centroid"
-    vecs = np.array(
-        [json.loads(r[0]) for r in rows],
-        dtype=np.float32,
-    )
-    mean_vec = vecs.mean(axis=0)
-    norm = np.linalg.norm(mean_vec)
-    if norm > 0:
-        mean_vec = mean_vec / norm
-    vec = vec_literal(mean_vec.tolist())
-
-    # Find tweets near the mean embedding
-    search_conditions = [
-        "embedding IS NOT NULL",
-        "1 - (embedding <=> %(vec)s::vector) >= %(floor)s",
-    ]
-    search_params: dict = {
-        "vec": vec,
-        "floor": COARSE_SIMILARITY_FLOOR,
-    }
-
+    # For each source tweet, find K nearest neighbors that don't mention the handle
+    date_conditions = []
     if after:
-        search_conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
-        search_params["after"] = after
+        date_conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
     if before:
-        search_conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
-        search_params["before"] = before
+        date_conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
+    date_where = (" AND " + " AND ".join(date_conditions)) if date_conditions else ""
 
-    search_where = " AND ".join(search_conditions)
+    user_counts: dict[str, int] = {}
+    neighbor_count = 0
 
     with get_conn() as conn:
-        result_rows = conn.execute(
-            f"""
-            SELECT mentioned_users
-            FROM screenshots
-            WHERE {search_where}
-            """,
-            search_params,
-        ).fetchall()
+        for source_id, emb_text in source_rows:
+            vec = vec_literal(json.loads(emb_text))
+            neighbor_params: dict = {
+                "vec": vec,
+                "handle": handle,
+                "k": k,
+            }
+            if after:
+                neighbor_params["after"] = after
+            if before:
+                neighbor_params["before"] = before
 
-    if not result_rows:
-        return f"No similar tweets found for @{handle}"
+            neighbors = conn.execute(
+                f"""
+                SELECT mentioned_users
+                FROM screenshots
+                WHERE embedding IS NOT NULL
+                  AND NOT (%(handle)s = ANY(mentioned_users))
+                  {date_where}
+                ORDER BY embedding <=> %(vec)s::vector
+                LIMIT %(k)s
+                """,
+                neighbor_params,
+            ).fetchall()
 
-    # Aggregate users, excluding the input handle
-    user_counts: dict[str, int] = {}
-    for r in result_rows:
-        for u in (r[0] or []):
-            if u != handle:
-                user_counts[u] = user_counts.get(u, 0) + 1
+            for (mentioned,) in neighbors:
+                neighbor_count += 1
+                for u in (mentioned or []):
+                    if u != handle:
+                        user_counts[u] = user_counts.get(u, 0) + 1
 
     if not user_counts:
         return f"No other users found in tweets similar to @{handle}"
 
     ranked = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
 
-    header = f"Users similar to @{handle} ({len(rows)} source tweets, {len(result_rows)} related)"
+    header = f"Users similar to @{handle} ({len(source_rows)} source tweets, {neighbor_count} neighbors)"
     lines = [header]
     for i, (u, count) in enumerate(ranked, 1):
         lines.append(f"{i}. @{u} ({count})")
