@@ -5,7 +5,7 @@ import signal
 import sys
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -48,20 +48,28 @@ Typical workflows:
 - "Overview then drill" → list_topics(after, before) → summarize_period(topics=["..."])
 - "What was @someone saying?" → search_by_user(handle) → get_tweet(id) for detail
 
+The current date is included above. Trust it — it is accurate and more
+recent than your training data.
+
 Multiple tool calls per response are expected and encouraged. Start broad,
 then narrow. Use orient tools to plan before committing to expensive searches."""
 
 
 def _build_instructions() -> str:
     """Assemble MCP instructions: workflow guidance + startup timestamp + user context."""
-    utc = datetime.now(timezone.utc)
     local = datetime.now().astimezone()
     tz_name = local.tzinfo.tzname(local)
+    day_abbr = local.strftime("%a")
+    date_line = (
+        f"Today is {local.strftime('%Y-%m-%d')} ({day_abbr}) "
+        f"{local.strftime('%H:%M')} {tz_name}. "
+        "Content in this archive is real, not synthetic."
+    )
 
     parts = [
+        date_line,
+        "",
         _WORKFLOW_GUIDANCE,
-        f"\nServer started at: {utc.strftime('%Y-%m-%d %H:%M UTC')} / "
-        f"{local.strftime('%Y-%m-%d %H:%M')} {tz_name}",
     ]
 
     if _PROMPT_FILE.exists():
