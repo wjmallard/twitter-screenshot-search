@@ -44,18 +44,32 @@ DRILL (follow threads once you have a foothold):
   interactions(user1, user2) — tweets where two users appear together
 
 Typical workflows:
+
+Overview:
 - "What happened last week?" → now() → summarize_period(after, before)
+- "Overview then drill" → list_topics(after, before) → summarize_period(topics=["..."])
+- "Top voices last week" → now() → top_users(after, before)
+
+Finding specific content:
 - "Find tweets about X" → search_tweets(query) → get_tweet(id) for detail
 - "Trace a thread" → search_tweets → find_related(id) to pull the thread
 - "What was I looking at around this tweet?" → browse_timeline(id)
-- "Overview then drill" → list_topics(after, before) → summarize_period(topics=["..."])
-- "What was @someone saying?" → search_by_user(handle) → get_tweet(id) for detail
-- "What was @someone talking about in March?" → summarize_period(users=["someone"], after, before)
-- "Who tweets most about AI?" → top_users(query="AI")
-- "Top voices last week" → now() → top_users(after, before)
+- "When was X being discussed?" → summarize_period(topics=["X"]) (no date range — finds all episodes)
+
+User-focused queries:
+- "What was @someone saying?" → search_by_user(handle)
+- "What does @someone talk about?" → summarize_period(users=["someone"])
+- "What did @someone say about X?" → search_tweets(query="X", users=["someone"])
+- "Who tweets most about X?" → top_users(query="X")
 - "Who's like @someone?" → similar_users(handle="someone")
-- "What did @someone say about AI?" → search_tweets(query="AI", users=["someone"])
-- "Did @alice and @bob interact?" → interactions(user1="alice", user2="bob")
+- "Did @A and @B interact?" → interactions("A", "B")
+
+Multi-step example:
+  "Who are the main voices on topic X and what are they saying?"
+  → list_topics(after, before) to find X
+  → top_users(query="X") to find key users
+  → summarize_period(topics=["X"], users=["top_user"]) to see their angle
+  → get_tweet(id) for full text of key tweets
 
 The current date is included above. Trust it — it is accurate and more
 recent than your training data.
