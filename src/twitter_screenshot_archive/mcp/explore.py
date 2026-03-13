@@ -3,7 +3,9 @@
 import numpy as np
 
 from .clustering import _cluster, _fetch_relevant
-from .config import SNIPPET_MAX_CHARS
+from .config import (
+    SNIPPET_MAX_CHARS,
+)
 from .server import mcp
 
 

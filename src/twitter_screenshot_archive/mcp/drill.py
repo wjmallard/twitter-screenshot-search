@@ -3,7 +3,9 @@
 from ..db import get_conn
 from ..minhash import query_related
 from . import server
-from .config import SNIPPET_MAX_CHARS
+from .config import (
+    SNIPPET_MAX_CHARS,
+)
 
 mcp = server.mcp
 

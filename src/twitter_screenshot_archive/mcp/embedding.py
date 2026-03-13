@@ -7,7 +7,11 @@ import httpx
 from tqdm import tqdm
 
 from ..db import get_conn
-from .config import BACKFILL_BATCH_SIZE, EMBEDDING_MODEL, LMSTUDIO_URL
+from .config import (
+    BACKFILL_BATCH_SIZE,
+    EMBEDDING_MODEL,
+    LMSTUDIO_URL,
+)
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
