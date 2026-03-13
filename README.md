@@ -114,7 +114,7 @@ On first run, embeds all OCR text via LM Studio. Subsequent starts catch up on n
 
 #### Tools
 
-Ten tools organized into three tiers:
+Thirteen tools organized into three tiers:
 
 **Orient** — cheap, fast, no embeddings:
 - **`now()`** — Current date and time (UTC and local). Resolves relative references like "last week."
@@ -122,15 +122,18 @@ Ten tools organized into three tiers:
 - **`count_screenshots(after?, before?)`** — Count screenshots in a time window.
 
 **Explore** — embedding-based, discover structure:
+- **`search_tweets(query, limit?, after?, before?, users?, sort?)`** — Semantic similarity search. Returns snippets ranked by relevance or chronologically. Supports date and user filtering — e.g. "What did @someone say about AI?"
 - **`list_topics(after?, before?, users?, max_topics?)`** — Lightweight table of contents: topic label + tweet count, ranked by size. Uses PCA dimensionality reduction and HDBSCAN clustering. Supports user filtering.
 - **`summarize_period(after?, before?, topics?, users?, max_topics?)`** — Rich clustered detail per topic: date span, tweet count, top mentioned users, and representative snippet. Supports topic and user filtering — e.g. "What was @someone talking about in March?" At least one of date range, topics, or users required.
-- **`search_tweets(query, limit?, after?, before?, sort?)`** — Semantic similarity search. Returns snippets ranked by relevance or chronologically. Supports date filtering.
+- **`top_users(query?, after?, before?, limit?)`** — Who appears most in tweets about a topic. Embed the query, fetch relevant tweets, aggregate mentioned users by count.
+- **`similar_users(handle, after?, before?, limit?, k?)`** — Who talks about similar things. Per-tweet nearest neighbors: for each tweet mentioning the handle, finds the K nearest tweets that don't mention that handle, aggregates users from those neighbors. Handles users with diverse interests without blurring.
 
 **Drill** — follow threads once you have a foothold:
+- **`get_tweet(id)`** — Full OCR text of a specific screenshot.
 - **`find_related(id, limit?)`** — Lexically similar tweets via MinHash. Finds other parts of the same thread, conversation, or reply chain.
 - **`browse_timeline(id, before?, after?)`** — Chronologically adjacent screenshots. Not a search — shows what was nearby in time.
 - **`search_by_user(handle, limit?, after?, before?)`** — Tweets mentioning a specific @user, sorted chronologically.
-- **`get_tweet(id)`** — Full OCR text of a specific screenshot.
+- **`interactions(user1, user2, limit?, after?, before?)`** — Tweets where two users appear together — conversations, quote tweets, and reply chains.
 
 #### Customization
 
