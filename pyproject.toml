@@ -5,7 +5,6 @@ description = "Full-text search for a Twitter screenshot archive"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "flask>=3.1.3",
     "opencv-python-headless>=4.13.0.92",
     "pillow>=12.1.1",
     "pillow-heif>=1.3.0",
@@ -17,11 +16,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+web = ["flask>=3.1.3"]
 mcp = ["mcp>=1.26", "scikit-learn>=1.3", "numpy"]
 
 [project.scripts]
 ingest = "twitter_screenshot_archive.core.ingest:main"
-web = "twitter_screenshot_archive.web.app:main"
+web = "twitter_screenshot_archive.web:main"
 mcp = "twitter_screenshot_archive.mcp:main"
 
 [build-system]
