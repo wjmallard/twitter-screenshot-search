@@ -63,8 +63,8 @@ async def summarize_period(
 
     parts = []
     for i, c in enumerate(clusters, 1):
-        start_date = c["date_start"].strftime("%Y-%m-%d")
-        end_date = c["date_end"].strftime("%Y-%m-%d")
+        start_date = c["start_date"].strftime("%Y-%m-%d")
+        end_date = c["end_date"].strftime("%Y-%m-%d")
         header = f"--- Topic {i} ({c['count']} tweets, {start_date} — {end_date}) ---"
         lines = [header]
 
@@ -113,8 +113,8 @@ async def list_topics(
 
     lines = []
     for i, c in enumerate(clusters, 1):
-        start_date = c["date_start"].strftime("%b %d")
-        end_date = c["date_end"].strftime("%b %d")
+        start_date = c["start_date"].strftime("%b %d")
+        end_date = c["end_date"].strftime("%b %d")
         medoid_snippet = (c["medoid"]["ocr_text_clean"] or "")[:200]
         lines.append(f"{i}. {medoid_snippet} ({c['count']} tweets, {start_date}–{end_date})")
 

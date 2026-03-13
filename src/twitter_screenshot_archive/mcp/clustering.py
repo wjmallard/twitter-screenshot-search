@@ -144,8 +144,8 @@ def _build_cluster(members: list[dict]) -> dict:
 
     # Date span
     times = [m["tweet_time"] or m["created_at"] for m in members]
-    date_start = min(times)
-    date_end = max(times)
+    start_date = min(times)
+    end_date = max(times)
 
     # Top mentioned users
     user_counts: dict[str, int] = {}
@@ -157,8 +157,8 @@ def _build_cluster(members: list[dict]) -> dict:
     return {
         "medoid": members[medoid_idx],
         "count": len(members),
-        "date_start": date_start,
-        "date_end": date_end,
+        "start_date": start_date,
+        "end_date": end_date,
         "top_users": top_users,
         "members": members,
     }
