@@ -12,7 +12,7 @@ from mcp.server.fastmcp import FastMCP
 
 from ..core.db import get_conn, load_all_signatures, signature_fingerprint
 from ..core.minhash import build_lsh_index
-from .embedding import backfill_embeddings, load_model
+from .embedding import load_model
 
 _CACHE_DIR = Path.home() / ".cache" / "twitter-screenshot-archive"
 _CACHE_FILE = _CACHE_DIR / "lsh_index.pkl"
@@ -154,7 +154,6 @@ async def _lifespan(server: FastMCP):
         print("Is the server running? Try: brew services start postgresql@17", file=sys.stderr)
         sys.exit(1)
     load_model()
-    backfill_embeddings()
     print("MCP server ready. Press Ctrl+D to exit.", file=sys.stderr)
     yield {}
 
@@ -167,6 +166,9 @@ mcp = FastMCP(
 
 
 def main():
+    # Import tool modules to trigger @mcp.tool() registration
+    from . import drill, explore, orient, search  # noqa: F401
+
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     try:
         mcp.run(transport="stdio")
