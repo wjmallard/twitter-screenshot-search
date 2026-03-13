@@ -212,12 +212,17 @@ async def search_by_user(
     where = " AND ".join(conditions)
 
     with get_conn() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM screenshots WHERE {where}",
+            params,
+        ).fetchone()[0]
+
         rows = conn.execute(
             f"""
             SELECT id, ocr_text_clean, tweet_time, mentioned_users
             FROM screenshots
             WHERE {where}
-            ORDER BY COALESCE(tweet_time, created_at)
+            ORDER BY COALESCE(tweet_time, created_at) DESC
             LIMIT %(limit)s
             """,
             params,
@@ -226,7 +231,11 @@ async def search_by_user(
     if not rows:
         return f"No tweets found mentioning @{handle}"
 
-    lines = [f"Found {len(rows)} tweets mentioning @{handle}\n"]
+    if len(rows) < total:
+        header = f"Showing {len(rows)} of {total} tweets mentioning @{handle} (newest first)"
+    else:
+        header = f"Found {total} tweets mentioning @{handle} (newest first)"
+    lines = [header + "\n"]
     for row in rows:
         lines.append(_format_row(row))
 

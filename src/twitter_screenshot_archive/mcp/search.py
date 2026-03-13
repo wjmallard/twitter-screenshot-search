@@ -44,7 +44,7 @@ async def search_tweets(
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         sort: "relevance" (default, by similarity) or "chronological"
-              (by tweet time, oldest first).
+              (by tweet time, newest first).
     """
     limit = max(1, min(limit, 200))
 
@@ -76,13 +76,23 @@ async def search_tweets(
     where = " AND ".join(conditions)
 
     with get_conn() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM screenshots WHERE {where}",
+            params,
+        ).fetchone()[0]
+
+        if sort == "chronological":
+            order_by = "COALESCE(tweet_time, created_at) DESC"
+        else:
+            order_by = "embedding <=> %(vec)s::vector"
+
         rows = conn.execute(
             f"""
             SELECT id, ocr_text_clean, tweet_time, mentioned_users,
                    1 - (embedding <=> %(vec)s::vector) AS similarity
             FROM screenshots
             WHERE {where}
-            ORDER BY {"COALESCE(tweet_time, created_at)" if sort == "chronological" else "embedding <=> %(vec)s::vector"}
+            ORDER BY {order_by}
             LIMIT %(limit)s
             """,
             params,
@@ -91,8 +101,13 @@ async def search_tweets(
     if not rows:
         return "No results found."
 
-    parts = [f"Found {len(rows)} results for: {query}\n"]
+    sort_label = "newest first" if sort == "chronological" else "best match first"
+    if len(rows) < total:
+        header = f"Showing {len(rows)} of {total} results for: {query} ({sort_label})"
+    else:
+        header = f"Found {total} results for: {query} ({sort_label})"
+    parts = [header + "\n"]
     for i, row in enumerate(rows, 1):
-        parts.append(_format_result(i, len(rows), row))
+        parts.append(_format_result(i, total, row))
 
     return "\n\n".join(parts)
