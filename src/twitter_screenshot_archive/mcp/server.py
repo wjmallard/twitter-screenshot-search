@@ -53,6 +53,7 @@ Typical workflows:
 - "Who tweets most about AI?" → top_users(query="AI")
 - "Top voices last week" → now() → top_users(after, before)
 - "Who's like @someone?" → similar_users(handle="someone")
+- "What did @someone say about AI?" → search_tweets(query="AI", users=["someone"])
 
 The current date is included above. Trust it — it is accurate and more
 recent than your training data.

@@ -33,6 +33,7 @@ async def search_tweets(
     limit: int = DEFAULT_SEARCH_LIMIT,
     after: str | None = None,
     before: str | None = None,
+    users: list[str] | None = None,
     sort: str = "relevance",
 ) -> str:
     """Find tweets about a topic. Semantic search — matches meaning, not exact
@@ -43,6 +44,8 @@ async def search_tweets(
         limit: Max results to return (default 10).
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
+        users: Optional list of handles to filter by (e.g. ["someone"]).
+               Union semantics — includes any tweet mentioning any listed user.
         sort: "relevance" (default, by similarity) or "chronological"
               (by tweet time, newest first).
     """
@@ -72,6 +75,10 @@ async def search_tweets(
     if before:
         conditions.append("COALESCE(tweet_time, created_at) < %(before)s::date")
         params["before"] = before
+    if users:
+        normalized = [u.lstrip("@").lower() for u in users]
+        conditions.append("mentioned_users && %(users)s::text[]")
+        params["users"] = normalized
 
     where = " AND ".join(conditions)
 
