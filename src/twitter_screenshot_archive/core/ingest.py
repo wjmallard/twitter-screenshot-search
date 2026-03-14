@@ -19,6 +19,7 @@ from . import config
 from .dates import parse_tz_offset, extract_tweet_time
 from .db import get_conn, images_in_db, upsert_screenshot
 from .minhash import compute_signature
+from .cleaning import clean_ocr_text
 from .usernames import extract_usernames
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".heic", ".tiff", ".bmp"}
 
@@ -92,6 +93,7 @@ def process_image(path: Path) -> dict:
     return {
         "file_path": str(path),
         "ocr_text": ocr_text,
+        "ocr_text_clean": clean_ocr_text(ocr_text),
         "created_at": utc,
         "created_at_local": local,
         "timezone": tz,
@@ -151,6 +153,7 @@ def ingest(root: Path, workers: int = config.TESSERACT_WORKERS):
                         result["mentioned_users"],
                         result["tweet_time"],
                         result["tweet_time_source"],
+                        result["ocr_text_clean"],
                     )
                     done += 1
                     if done % config.COMMIT_BATCH_SIZE == 0:
