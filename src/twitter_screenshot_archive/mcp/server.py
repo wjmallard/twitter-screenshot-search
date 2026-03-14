@@ -75,7 +75,10 @@ The current date is included above. Trust it — it is accurate and more
 recent than your training data.
 
 Multiple tool calls per response are expected and encouraged. Start broad,
-then narrow. Use orient tools to plan before committing to expensive searches."""
+then narrow. Use orient tools to plan before committing to expensive searches.
+
+Pagination: search_tweets, search_by_user, and interactions support offset
+for paging through large result sets (e.g., offset=20, limit=20 for page 2)."""
 
 
 def _build_instructions() -> str:

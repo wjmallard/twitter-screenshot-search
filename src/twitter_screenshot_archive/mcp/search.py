@@ -28,6 +28,7 @@ def _format_result(index: int, total: int, row) -> str:
 async def search_tweets(
     query: str,
     limit: int = DEFAULT_SEARCH_LIMIT,
+    offset: int = 0,
     after: str | None = None,
     before: str | None = None,
     users: list[str] | None = None,
@@ -39,6 +40,7 @@ async def search_tweets(
     Args:
         query: Search query text.
         limit: Max results to return (default 10).
+        offset: Number of results to skip (default 0). Use to paginate.
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         users: Optional list of handles to filter by (e.g. ["someone"]).
@@ -47,6 +49,7 @@ async def search_tweets(
               (by tweet time, newest first).
     """
     limit = max(1, min(limit, 200))
+    offset = max(0, offset)
 
     query_emb = embed_texts([query])[0]
     vec = vec_literal(query_emb)
@@ -58,6 +61,7 @@ async def search_tweets(
     params: dict = {
         "vec": vec,
         "limit": limit,
+        "offset": offset,
         "floor": SEARCH_SIMILARITY_FLOOR,
     }
 
@@ -93,6 +97,7 @@ async def search_tweets(
             WHERE {where}
             ORDER BY {order_by}
             LIMIT %(limit)s
+            OFFSET %(offset)s
             """,
             params,
         ).fetchall()
@@ -101,12 +106,14 @@ async def search_tweets(
         return "No results found."
 
     sort_label = "newest first" if sort == "chronological" else "best match first"
-    if len(rows) < total:
-        header = f"Showing {len(rows)} of {total} results for: {query} ({sort_label})"
+    start = offset + 1
+    end = offset + len(rows)
+    if len(rows) < total - offset:
+        header = f"Results {start}–{end} of {total} for: {query} ({sort_label})"
     else:
         header = f"Found {total} results for: {query} ({sort_label})"
     parts = [header + "\n"]
-    for i, row in enumerate(rows, 1):
+    for i, row in enumerate(rows, start):
         parts.append(_format_result(i, total, row))
 
     return "\n\n".join(parts)

@@ -182,6 +182,7 @@ async def find_related(id: int, limit: int = 10) -> str:
 async def search_by_user(
     handle: str,
     limit: int = 20,
+    offset: int = 0,
     after: str | None = None,
     before: str | None = None,
     sort: str = "newest",
@@ -192,17 +193,20 @@ async def search_by_user(
     Args:
         handle: Twitter handle to search for (with or without @).
         limit: Max results to return (default 20).
+        offset: Number of results to skip (default 0). Use to paginate.
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         sort: "newest" (default) or "oldest".
     """
     handle = handle.lstrip("@").lower()
     limit = max(1, min(limit, 200))
+    offset = max(0, offset)
 
     conditions = ["%(handle)s = ANY(mentioned_users)"]
     params: dict = {
         "handle": handle,
         "limit": limit,
+        "offset": offset,
     }
 
     if after:
@@ -241,6 +245,7 @@ async def search_by_user(
             WHERE {where}
             ORDER BY {order_by}
             LIMIT %(limit)s
+            OFFSET %(offset)s
             """,
             params,
         ).fetchall()
@@ -252,8 +257,10 @@ async def search_by_user(
     if earliest and latest:
         date_span = f"{earliest.strftime('%Y-%m-%d')} — {latest.strftime('%Y-%m-%d')}"
 
-    if len(rows) < total:
-        header = f"{total} tweets mentioning @{handle} ({date_span}, showing {len(rows)} {sort_label})"
+    start = offset + 1
+    end = offset + len(rows)
+    if len(rows) < total - offset:
+        header = f"{total} tweets mentioning @{handle} ({date_span}, results {start}–{end} {sort_label})"
     else:
         header = f"{total} tweets mentioning @{handle} ({date_span}, {sort_label})"
     lines = [header + "\n"]
@@ -268,6 +275,7 @@ async def interactions(
     user1: str,
     user2: str,
     limit: int = 20,
+    offset: int = 0,
     after: str | None = None,
     before: str | None = None,
 ) -> str:
@@ -278,18 +286,21 @@ async def interactions(
         user1: First Twitter handle (with or without @).
         user2: Second Twitter handle (with or without @).
         limit: Max results to return (default 20).
+        offset: Number of results to skip (default 0). Use to paginate.
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
     """
     user1 = user1.lstrip("@").lower()
     user2 = user2.lstrip("@").lower()
     limit = max(1, min(limit, 200))
+    offset = max(0, offset)
 
     conditions = ["mentioned_users @> ARRAY[%(u1)s, %(u2)s]"]
     params: dict = {
         "u1": user1,
         "u2": user2,
         "limit": limit,
+        "offset": offset,
     }
 
     if after:
@@ -314,6 +325,7 @@ async def interactions(
             WHERE {where}
             ORDER BY COALESCE(tweet_time, created_at) DESC
             LIMIT %(limit)s
+            OFFSET %(offset)s
             """,
             params,
         ).fetchall()
@@ -321,8 +333,10 @@ async def interactions(
     if not rows:
         return f"No tweets found with both @{user1} and @{user2}"
 
-    if len(rows) < total:
-        header = f"Showing {len(rows)} of {total} tweets with @{user1} + @{user2} (newest first)"
+    start = offset + 1
+    end = offset + len(rows)
+    if len(rows) < total - offset:
+        header = f"Results {start}–{end} of {total} tweets with @{user1} + @{user2} (newest first)"
     else:
         header = f"Found {total} tweets with @{user1} + @{user2} (newest first)"
     lines = [header + "\n"]
