@@ -29,3 +29,10 @@ CLUSTER_MIN_SAMPLES = _raw.get("cluster_min_samples", None)  # defaults to CLUST
 TOPIC_SIM_THRESHOLD_PCT = _raw.get("topic_sim_threshold_pct", 0.30)
 COARSE_SIMILARITY_FLOOR = _raw.get("coarse_sim_floor", 0.15)  # SQL pre-filter: deliberately loose
 SUMMARIZE_SNIPPETS = _raw.get("summarize_snippets", 0)
+
+# Vision-language model (tsa-describe)
+VLM_MODEL_ID = _raw.get(
+    "vlm_model_id", "mlx-community/Qwen2.5-VL-7B-Instruct-4bit"
+)
+VLM_MAX_TOKENS = _raw.get("vlm_max_tokens", 500)
+VLM_REPETITION_PENALTY = _raw.get("vlm_repetition_penalty", 1.3)
