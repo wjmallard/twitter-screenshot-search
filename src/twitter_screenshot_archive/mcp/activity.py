@@ -11,6 +11,7 @@ _VALID_GRANULARITIES = {"day", "week", "month", "year"}
 @mcp.tool()
 async def tweet_activity(
     query: str | None = None,
+    keywords: str | None = None,
     users: list[str] | None = None,
     after: str | None = None,
     before: str | None = None,
@@ -23,6 +24,8 @@ async def tweet_activity(
 
     Args:
         query: Optional semantic search query to filter by topic.
+        keywords: Optional PostgreSQL tsquery filter for exact word matching.
+                  Use '|' for OR, '&' for AND, '!' for NOT.
         users: Optional list of handles to filter by (e.g. ["someone"]).
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
@@ -46,6 +49,10 @@ async def tweet_activity(
         )
         params["vec"] = vec
         params["floor"] = min_score
+
+    if keywords:
+        conditions.append("ocr_text_tsv @@ to_tsquery('english', %(keywords)s)")
+        params["keywords"] = keywords
 
     if after:
         conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
