@@ -6,7 +6,9 @@ Full-text search and topic discovery over a personal archive of Twitter screensh
 
 1. **Ingest** — OCR screenshots with Tesseract, compute MinHash signatures, insert into Postgres
 2. **Search** (optional) — Flask web UI with fuzzy search, related-tweet discovery, and image lightbox
-3. **MCP Server** (optional) — Semantic search, topic clustering, and discourse tracing via LM Studio embeddings, exposed as MCP tools for LLM chat models (e.g. Qwen, Claude)
+3. **MCP Server** (optional) — Semantic search, topic clustering, and discourse tracing via in-process MLX embeddings, exposed as MCP tools for LLM chat models (e.g. Claude, Qwen)
+4. **Embed** (optional) — Standalone embedding backfill using Qwen3-Embedding on Apple Silicon via MLX
+5. **Describe** (optional) — VLM image descriptions using Qwen2.5-VL-7B, classifying and transcribing tweet screenshots
 
 Dates are parsed from JSON sidecars with EXIF fallback.
 
@@ -18,6 +20,7 @@ Dates are parsed from JSON sidecars with EXIF fallback.
 - OpenCV
 - datasketch
 - Flask (optional — web UI)
+- MLX, mlx-lm, mlx-vlm (optional — Apple Silicon ML inference)
 - scikit-learn, MCP (optional — MCP server)
 
 ## Setup
@@ -97,12 +100,23 @@ Exposes the archive to LLM chat models (e.g. Qwen, Claude) as MCP tools for sema
 
 #### Prerequisites
 
-- [LM Studio](https://lmstudio.ai) running locally with an embedding model (default: `text-embedding-embeddinggemma-300m`)
+- Apple Silicon Mac (MLX required for embeddings and VLM)
 - pgvector extension installed in PostgreSQL
 
 #### Setup
 
 Install with `uv sync --extra mcp` (see [Install Dependencies](#install-dependencies)).
+
+#### Embedding & VLM Backfill
+
+Embeddings and VLM descriptions run as standalone tools, not at MCP startup:
+
+```bash
+uv run tsa-embed      # embed OCR text (Qwen3-Embedding-0.6B, ~20/sec)
+uv run tsa-describe   # VLM image descriptions (Qwen2.5-VL-7B, ~7.5 sec/image)
+```
+
+Both are resumable — they process rows where the target column is NULL.
 
 #### Run
 
@@ -110,19 +124,20 @@ Install with `uv sync --extra mcp` (see [Install Dependencies](#install-dependen
 uv run tsa-mcp
 ```
 
-On first run, embeds all OCR text via LM Studio. Subsequent starts catch up on new entries only.
+Starts instantly with whatever is already in the database.
 
 #### Tools
 
-Thirteen tools organized into three tiers:
+Fourteen tools organized into three tiers:
 
 **Orient** — cheap, fast, no embeddings:
 - **`now()`** — Current date and time (UTC and local). Resolves relative references like "last week."
 - **`archive_range()`** — First and last dates in the archive.
 - **`count_screenshots(after?, before?)`** — Count screenshots in a time window.
+- **`tweet_activity(query?, keywords?, users?, after?, before?, granularity?)`** — Histogram of tweet counts over time (by day/week/month/year). Always includes max similarity when query is provided.
 
 **Explore** — embedding-based, discover structure:
-- **`search_tweets(query, limit?, after?, before?, users?, sort?)`** — Semantic similarity search. Returns snippets ranked by relevance or chronologically. Supports date and user filtering — e.g. "What did @someone say about AI?"
+- **`search_tweets(query?, keywords?, limit?, offset?, min_score?, after?, before?, users?, sort?)`** — Semantic, keyword, or hybrid search. Semantic matches meaning; keywords filter by exact words via PostgreSQL tsquery. Use both together for precision.
 - **`list_topics(after?, before?, users?, max_topics?)`** — Lightweight table of contents: topic label + tweet count, ranked by size. Uses PCA dimensionality reduction and HDBSCAN clustering. Supports user filtering.
 - **`summarize_period(after?, before?, topics?, users?, max_topics?)`** — Rich clustered detail per topic: date span, tweet count, top mentioned users, and representative snippet. Supports topic and user filtering — e.g. "What was @someone talking about in March?" At least one of date range, topics, or users required.
 - **`top_users(query?, after?, before?, limit?)`** — Who appears most in tweets about a topic. Embed the query, fetch relevant tweets, aggregate mentioned users by count.
@@ -132,8 +147,8 @@ Thirteen tools organized into three tiers:
 - **`get_tweet(id)`** — Full OCR text of a specific screenshot.
 - **`find_related(id, limit?)`** — Lexically similar tweets via MinHash. Finds other parts of the same thread, conversation, or reply chain.
 - **`nearby_screenshots(id, before?, after?)`** — Screenshots captured around the same time as a given tweet. Not a search — just chronological neighbors. Requires a known ID from another tool.
-- **`search_by_user(handle, limit?, after?, before?, sort?)`** — Tweets mentioning a specific @user. Sort by "newest" (default) or "oldest".
-- **`interactions(user1, user2, limit?, after?, before?)`** — Tweets where two users appear together — conversations, quote tweets, and reply chains.
+- **`search_by_user(handle, limit?, offset?, after?, before?, sort?)`** — Tweets mentioning a specific @user. Sort by "newest" (default) or "oldest".
+- **`interactions(user1, user2, limit?, offset?, after?, before?)`** — Tweets where two users appear together — conversations, quote tweets, and reply chains.
 
 #### Customization
 
