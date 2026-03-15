@@ -15,6 +15,7 @@ async def tweet_activity(
     after: str | None = None,
     before: str | None = None,
     granularity: str = "year",
+    min_score: float = SEARCH_SIMILARITY_FLOOR,
     include_mean: bool = False,
 ) -> str:
     """Show tweet counts over time, bucketed by day/week/month/year.
@@ -26,6 +27,7 @@ async def tweet_activity(
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         granularity: Bucket size — "day", "week", "month", or "year" (default).
+        min_score: Minimum similarity threshold when query is provided (default 0.4).
         include_mean: When query is provided, also show mean similarity per
                       bucket alongside the always-on max (default false).
     """
@@ -43,7 +45,7 @@ async def tweet_activity(
             "1 - (embedding <=> %(vec)s::vector) >= %(floor)s"
         )
         params["vec"] = vec
-        params["floor"] = SEARCH_SIMILARITY_FLOOR
+        params["floor"] = min_score
 
     if after:
         conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")

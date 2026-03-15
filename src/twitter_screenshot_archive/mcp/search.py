@@ -29,6 +29,7 @@ async def search_tweets(
     query: str,
     limit: int = DEFAULT_SEARCH_LIMIT,
     offset: int = 0,
+    min_score: float = SEARCH_SIMILARITY_FLOOR,
     after: str | None = None,
     before: str | None = None,
     users: list[str] | None = None,
@@ -41,6 +42,8 @@ async def search_tweets(
         query: Search query text.
         limit: Max results to return (default 10).
         offset: Number of results to skip (default 0). Use to paginate.
+        min_score: Minimum similarity threshold (default 0.4). Raise for
+                   precision, lower for recall. Set to 0 to disable.
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         users: Optional list of handles to filter by (e.g. ["someone"]).
@@ -62,7 +65,7 @@ async def search_tweets(
         "vec": vec,
         "limit": limit,
         "offset": offset,
-        "floor": SEARCH_SIMILARITY_FLOOR,
+        "floor": min_score,
     }
 
     if after:
