@@ -15,7 +15,7 @@ async def tweet_activity(
     after: str | None = None,
     before: str | None = None,
     granularity: str = "year",
-    score: str | None = None,
+    include_mean: bool = False,
 ) -> str:
     """Show tweet counts over time, bucketed by day/week/month/year.
     Use to find when a topic or user was most active before drilling in.
@@ -26,15 +26,14 @@ async def tweet_activity(
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         granularity: Bucket size — "day", "week", "month", or "year" (default).
-        score: When query is provided, include similarity scores per bucket:
-               "mean", "max", or None (default: no scores).
+        include_mean: When query is provided, also show mean similarity per
+                      bucket alongside the always-on max (default false).
     """
     if granularity not in _VALID_GRANULARITIES:
         return f"Error: granularity must be one of: {', '.join(sorted(_VALID_GRANULARITIES))}"
 
     conditions = ["ocr_text_clean IS NOT NULL"]
     params: dict = {}
-    vec = None
 
     if query:
         query_emb = embed_texts([query])[0]
@@ -64,11 +63,14 @@ async def tweet_activity(
     params["granularity"] = granularity
 
     select_cols = [f"{bucket} AS bucket", "COUNT(*) AS cnt"]
-    if query and score in ("mean", "max"):
-        score_fn = "AVG" if score == "mean" else "MAX"
+    if query:
         select_cols.append(
-            f"{score_fn}(1 - (embedding <=> %(vec)s::vector)) AS sim"
+            f"MAX(1 - (embedding <=> %(vec)s::vector)) AS max_sim"
         )
+        if include_mean:
+            select_cols.append(
+                f"AVG(1 - (embedding <=> %(vec)s::vector)) AS mean_sim"
+            )
 
     select = ", ".join(select_cols)
 
@@ -98,7 +100,6 @@ async def tweet_activity(
     bar_width = 20
 
     # Format output
-    has_scores = query and score in ("mean", "max")
     lines = []
 
     # Header
@@ -127,9 +128,12 @@ async def tweet_activity(
         bar_len = round(count / max_count * bar_width) if max_count > 0 else 0
         bar = "\u2588" * bar_len
 
-        if has_scores:
-            sim = row[2]
-            lines.append(f"{label}  {count:>5}  sim={sim:.2f}  {bar}")
+        if query:
+            max_sim = row[2]
+            score_str = f"max={max_sim:.2f}"
+            if include_mean:
+                score_str += f"  mean={row[3]:.2f}"
+            lines.append(f"{label}  {count:>5}  {score_str}  {bar}")
         else:
             lines.append(f"{label}  {count:>5}  {bar}")
 
