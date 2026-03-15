@@ -10,12 +10,16 @@ from .embedding import embed_texts, vec_literal
 from .server import mcp
 
 
-def _format_result(index: int, total: int, row) -> str:
+def _format_result(index: int, total: int, row, has_sim: bool) -> str:
     """Format a single search result as plain text."""
-    id, text, tweet_time, mentioned, sim = row
-    lines = [f"[{index}/{total}] ID {id} | sim: {sim:.2f}"]
+    id, text, tweet_time, mentioned = row[:4]
+    sim = row[4] if has_sim else None
+    parts = [f"[{index}/{total}] ID {id}"]
+    if sim is not None:
+        parts[0] += f" | sim: {sim:.2f}"
     if tweet_time:
-        lines[0] += f" | {tweet_time.isoformat()}"
+        parts[0] += f" | {tweet_time.isoformat()}"
+    lines = parts
     if mentioned:
         lines.append(f"Users: {', '.join('@' + u for u in mentioned)}")
     snippet = (text or "")[:SNIPPET_MAX_CHARS]
@@ -26,7 +30,8 @@ def _format_result(index: int, total: int, row) -> str:
 
 @mcp.tool()
 async def search_tweets(
-    query: str,
+    query: str | None = None,
+    keywords: str | None = None,
     limit: int = DEFAULT_SEARCH_LIMIT,
     offset: int = 0,
     min_score: float = SEARCH_SIMILARITY_FLOOR,
@@ -35,38 +40,58 @@ async def search_tweets(
     users: list[str] | None = None,
     sort: str = "relevance",
 ) -> str:
-    """Find tweets about a topic. Semantic search — matches meaning, not exact
-    words. Use sort=chronological for a filtered timeline.
+    """Find tweets by meaning and/or keywords. Semantic search matches meaning;
+    keywords filter by exact words. Use both together for precision.
 
     Args:
-        query: Search query text.
+        query: Semantic search query (matches meaning, not exact words).
+               Required unless keywords is provided.
+        keywords: PostgreSQL tsquery filter for exact word matching.
+                  Use '|' for OR, '&' for AND, '!' for NOT.
+                  Examples: "dementia | senile", "biden & !genocide"
         limit: Max results to return (default 10).
         offset: Number of results to skip (default 0). Use to paginate.
-        min_score: Minimum similarity threshold (default 0.4). Raise for
-                   precision, lower for recall. Set to 0 to disable.
+        min_score: Minimum similarity threshold (default 0.4). Only applies
+                   when query is provided. Set to 0 to disable.
         after: Only include tweets after this date (YYYY-MM-DD).
         before: Only include tweets before this date (YYYY-MM-DD).
         users: Optional list of handles to filter by (e.g. ["someone"]).
                Union semantics — includes any tweet mentioning any listed user.
-        sort: "relevance" (default, by similarity) or "chronological"
-              (by tweet time, newest first).
+        sort: "relevance" (default) or "chronological" (newest first).
     """
+    if not query and not keywords:
+        return "Error: provide at least one of query or keywords."
+
     limit = max(1, min(limit, 200))
     offset = max(0, offset)
 
-    query_emb = embed_texts([query])[0]
-    vec = vec_literal(query_emb)
-
-    conditions = [
-        "embedding IS NOT NULL",
-        "1 - (embedding <=> %(vec)s::vector) >= %(floor)s",
-    ]
+    conditions = []
     params: dict = {
-        "vec": vec,
         "limit": limit,
         "offset": offset,
-        "floor": min_score,
     }
+
+    has_query = bool(query)
+
+    if query:
+        query_emb = embed_texts([query])[0]
+        vec = vec_literal(query_emb)
+        conditions.append("embedding IS NOT NULL")
+        conditions.append("1 - (embedding <=> %(vec)s::vector) >= %(floor)s")
+        params["vec"] = vec
+        params["floor"] = min_score
+
+    if keywords:
+        try:
+            with get_conn() as conn:
+                conn.execute(
+                    "SELECT to_tsquery('english', %(kw)s)",
+                    {"kw": keywords},
+                )
+        except Exception:
+            return f"Error: invalid keywords syntax: {keywords!r}"
+        conditions.append("ocr_text_tsv @@ to_tsquery('english', %(keywords)s)")
+        params["keywords"] = keywords
 
     if after:
         conditions.append("COALESCE(tweet_time, created_at) >= %(after)s::date")
@@ -79,7 +104,21 @@ async def search_tweets(
         conditions.append("mentioned_users && %(users)s::text[]")
         params["users"] = normalized
 
-    where = " AND ".join(conditions)
+    where = " AND ".join(conditions) if conditions else "TRUE"
+
+    # Determine SELECT and ORDER BY based on mode
+    if has_query:
+        select_extra = ", 1 - (embedding <=> %(vec)s::vector) AS similarity"
+        if sort == "chronological":
+            order_by = "COALESCE(tweet_time, created_at) DESC"
+        else:
+            order_by = "embedding <=> %(vec)s::vector"
+    else:
+        select_extra = ", ts_rank(ocr_text_tsv, to_tsquery('english', %(keywords)s)) AS rank"
+        if sort == "chronological":
+            order_by = "COALESCE(tweet_time, created_at) DESC"
+        else:
+            order_by = "ts_rank(ocr_text_tsv, to_tsquery('english', %(keywords)s)) DESC"
 
     with get_conn() as conn:
         total = conn.execute(
@@ -87,15 +126,10 @@ async def search_tweets(
             params,
         ).fetchone()[0]
 
-        if sort == "chronological":
-            order_by = "COALESCE(tweet_time, created_at) DESC"
-        else:
-            order_by = "embedding <=> %(vec)s::vector"
-
         rows = conn.execute(
             f"""
-            SELECT id, ocr_text_clean, tweet_time, mentioned_users,
-                   1 - (embedding <=> %(vec)s::vector) AS similarity
+            SELECT id, ocr_text_clean, tweet_time, mentioned_users
+                   {select_extra}
             FROM screenshots
             WHERE {where}
             ORDER BY {order_by}
@@ -111,12 +145,21 @@ async def search_tweets(
     sort_label = "newest first" if sort == "chronological" else "best match first"
     start = offset + 1
     end = offset + len(rows)
+
+    # Build header
+    desc_parts = []
+    if query:
+        desc_parts.append(query)
+    if keywords:
+        desc_parts.append(f"keywords={keywords!r}")
+    desc = ", ".join(desc_parts)
+
     if len(rows) < total - offset:
-        header = f"Results {start}–{end} of {total} for: {query} ({sort_label})"
+        header = f"Results {start}\u2013{end} of {total} for: {desc} ({sort_label})"
     else:
-        header = f"Found {total} results for: {query} ({sort_label})"
+        header = f"Found {total} results for: {desc} ({sort_label})"
     parts = [header + "\n"]
     for i, row in enumerate(rows, start):
-        parts.append(_format_result(i, total, row))
+        parts.append(_format_result(i, total, row, has_sim=has_query))
 
     return "\n\n".join(parts)

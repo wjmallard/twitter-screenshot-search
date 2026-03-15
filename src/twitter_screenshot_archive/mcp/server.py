@@ -33,7 +33,7 @@ ORIENT (cheap, fast — use these first):
 EXPLORE (embedding-based — discover structure):
   list_topics()      — lightweight table of contents: topic + count
   summarize_period() — rich clustered detail per topic
-  search_tweets()    — flat semantic search, needle-finding
+  search_tweets()    — semantic, keyword, or hybrid search
   top_users(query?)  — who talks about a topic the most
   similar_users(handle) — who talks about similar things
 
