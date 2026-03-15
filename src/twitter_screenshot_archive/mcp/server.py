@@ -28,6 +28,7 @@ ORIENT (cheap, fast — use these first):
   now()              — current date/time, for resolving "last week" etc.
   archive_range()    — first and last dates in the archive
   count_screenshots() — how many screenshots in a date window
+  tweet_activity()   — histogram of tweet counts over time (by day/week/month/year)
 
 EXPLORE (embedding-based — discover structure):
   list_topics()      — lightweight table of contents: topic + count
@@ -46,6 +47,7 @@ DRILL (follow threads once you have a foothold):
 Typical workflows:
 
 Overview:
+- "When was X being discussed?" → tweet_activity(query="X") → narrow to peak periods
 - "What happened last week?" → now() → summarize_period(after, before)
 - "Overview then drill" → list_topics(after, before) → summarize_period(topics=["..."])
 - "Top voices last week" → now() → top_users(after, before)
@@ -170,7 +172,7 @@ mcp = FastMCP(
 
 def main():
     # Import tool modules to trigger @mcp.tool() registration
-    from . import drill, explore, orient, search  # noqa: F401
+    from . import activity, drill, explore, orient, search  # noqa: F401
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     try:
